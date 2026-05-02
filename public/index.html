@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeadFinder — Command Desk</title>
+  <meta name="description" content="Scrape Targetron leads, save them to your library, enrich with Google Search, and manage your CRM.">
+  <meta name="theme-color" content="#15130f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700;800&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#searchForm">Skip to search</a>
+  <div class="mesh-bg" aria-hidden="true"></div>
+
+  <!-- Navigation -->
+  <header class="nav-island">
+    <div class="nav-shell">
+      <div class="nav-core">
+        <div class="nav-logo">
+          <div class="logo-gem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/>
+            </svg>
+          </div>
+          <span class="nav-brand">Lead<span class="brand-accent">Finder</span></span>
+        </div>
+
+        <nav class="nav-center" aria-label="Main navigation">
+          <ul class="nav-list" role="tablist">
+            <li role="presentation">
+              <button class="nav-tab active" role="tab" id="tab-search" onclick="switchView('search')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Search
+              </button>
+            </li>
+            <li role="presentation">
+              <button class="nav-tab" role="tab" id="tab-leads" onclick="switchView('leads')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Leads Library
+              </button>
+            </li>
+            <li role="presentation">
+              <button class="nav-tab" role="tab" id="tab-crm" onclick="switchView('crm')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                CRM
+              </button>
+            </li>
+            <li role="presentation">
+              <button class="nav-tab" role="tab" id="tab-emails" onclick="switchView('emails')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email List
+              </button>
+            </li>
+          </ul>
+        </nav>
+
+        <div class="nav-right">
+          <div class="status-orb" id="agentStatus">
+            <div class="orb-dot idle" id="statusDot"></div>
+            <span class="status-text" id="statusText">Agent Idle</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-canvas">
+
+    <!-- ══════════════════════════════════════════════
+         VIEW: SEARCH
+    ══════════════════════════════════════════════ -->
+    <div id="view-search" class="app-view">
+      <div class="hero-block">
+        <div class="eyebrow-tag"><div class="eyebrow-dot"></div>Targetron command desk</div>
+        <h1 class="hero-headline">Build a local market list without leaving the desk.</h1>
+        <p class="hero-sub">Set category, country, and city. LeadFinder scrapes the results and saves them to your library.</p>
+        <div class="hero-metrics">
+          <div><strong>847</strong><span>categories</span></div>
+          <div><strong>200+</strong><span>countries</span></div>
+          <div><strong>CSV</strong><span>exports</span></div>
+        </div>
+      </div>
+
+      <!-- Search Form -->
+      <div class="search-shell reveal-up" id="searchShell">
+        <div class="search-core">
+          <div class="panel-kicker">
+            <span>Search brief</span><span class="panel-code">LF-01</span>
+          </div>
+          <div class="search-grid" id="searchForm">
+            <!-- Category -->
+            <div class="field-block">
+              <label class="field-tag" for="category">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+                Category
+              </label>
+              <div class="input-shell dropdown-wrap" id="categoryWrap">
+                <input type="text" id="category" class="field-input" placeholder="Search 847 categories…"
+                  autocomplete="off" oninput="filterCategories()" onfocus="openCategoryDropdown()" onkeydown="categoryKeyNav(event)">
+                <button class="chevron-btn" onclick="toggleCategoryDropdown()" tabindex="-1" aria-label="Toggle category dropdown">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="dropdown-panel" id="categoryDropdown">
+                  <div class="dropdown-list" id="categoryList"></div>
+                </div>
+              </div>
+            </div>
+            <!-- Country -->
+            <div class="field-block">
+              <label class="field-tag" for="country">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                Country
+              </label>
+              <div class="input-shell dropdown-wrap" id="countryWrap">
+                <input type="text" id="country" class="field-input" placeholder="Search 200+ countries…"
+                  autocomplete="off" oninput="filterCountries()" onfocus="openCountryDropdown()" onkeydown="countryKeyNav(event)">
+                <button class="chevron-btn" onclick="toggleCountryDropdown()" tabindex="-1" aria-label="Toggle country dropdown">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="dropdown-panel" id="countryDropdown">
+                  <div class="dropdown-list" id="countryList"></div>
+                </div>
+              </div>
+            </div>
+            <!-- City -->
+            <div class="field-block">
+              <label class="field-tag" for="city">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                City / Town
+              </label>
+              <div class="input-shell">
+                <input type="text" id="city" class="field-input" placeholder="e.g. New York, London…">
+              </div>
+            </div>
+          </div>
+
+          <div class="search-cta">
+            <button class="btn-find" id="searchBtn" onclick="startSearch()">
+              <span class="btn-label" id="searchBtnText">Find Leads</span>
+              <span class="btn-icon-wrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              </span>
+            </button>
+            <div class="search-hint">Runs a headless browser agent. Results stay local.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <section class="progress-section" id="progressSection" style="display:none">
+        <div class="progress-shell reveal-up">
+          <div class="progress-core">
+            <div class="progress-header">
+              <div class="pulse-ring"><div class="pulse-dot"></div></div>
+              <div class="progress-meta">
+                <span class="progress-title">Agent running</span>
+                <span class="progress-sub">Scraping Targetron — results appear below when ready.</span>
+              </div>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
+            <div class="progress-log" id="progressLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Preview -->
+      <section id="resultsSection" style="display:none">
+        <div class="crm-top reveal-up">
+          <div class="crm-info">
+            <div class="section-eyebrow">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Scrape results
+            </div>
+            <h2 class="crm-title">Captured leads</h2>
+            <div class="crm-meta-row"><span class="crm-count-badge" id="resultsMeta">0 leads</span></div>
+          </div>
+          <div class="crm-controls">
+            <button class="btn-find" id="saveBtn" onclick="openSaveModal()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save to Leads
+            </button>
+            <button class="btn-ghost" onclick="clearResults()">Clear</button>
+          </div>
+        </div>
+        <div class="table-shell reveal-up">
+          <div class="table-scroll">
+            <table class="crm-table" id="resultsTable">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th class="col-name">Business Name</th>
+                  <th class="col-address">Address</th>
+                  <th class="col-website">Website</th>
+                  <th class="col-phone">Phone</th>
+                  <th class="col-status">Status</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         VIEW: LEADS LIBRARY
+    ══════════════════════════════════════════════ -->
+    <div id="view-leads" class="app-view" style="display:none">
+      <!-- Library grid -->
+      <section id="leadsLibrary">
+        <div class="lib-header">
+          <div>
+            <div class="section-eyebrow"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Saved files</div>
+            <h2 class="section-title">Leads Library</h2>
+            <p class="section-sub">Each file is one scrape session. Open a file, then enrich it with the Find Leads agent.</p>
+          </div>
+          <button class="btn-ghost" onclick="loadLeadsLibrary()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="file-grid" id="leadsGrid"></div>
+      </section>
+
+      <!-- File detail -->
+      <section id="leadsDetail" style="display:none">
+        <div class="detail-header">
+          <button class="btn-ghost" onclick="closeLeadsDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            Back to library
+          </button>
+          <div class="detail-title-row">
+            <h3 id="leadsDetailName"></h3>
+            <div class="detail-actions">
+              <button class="btn-find" id="findLeadsBtn" onclick="startEnrichment()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M8 11h6M11 8v6"/></svg>
+                Find Leads (Enrich)
+              </button>
+              <button class="btn-danger" id="stopEnrichBtn" onclick="stopEnrichment()" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                Stop Agent
+              </button>
+              <button class="btn-ghost" id="leadsExportBtn" onclick="exportCurrentLeads()">Export CSV</button>
+              <button class="btn-danger" id="leadsDeleteSelectedBtn" onclick="deleteSelectedLeads()" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                Delete Selected (<span id="selectedCount">0</span>)
+              </button>
+              <button class="btn-danger" id="leadsDeleteBtn" onclick="deleteLeadsFile()">Delete File</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enrichment progress (hidden until running) -->
+        <div id="enrichProgress" style="display:none" class="progress-shell" style="margin-bottom:20px">
+          <div class="progress-core">
+            <div class="progress-header">
+              <div class="pulse-ring"><div class="pulse-dot"></div></div>
+              <div class="progress-meta">
+                <span class="progress-title">Find Leads agent running</span>
+                <span class="progress-sub" id="enrichSubText">Searching Google for each lead…</span>
+              </div>
+            </div>
+            <div class="progress-track"><div class="progress-fill"></div></div>
+            <div class="progress-log" id="enrichLog"></div>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="leads-filter-bar">
+          <div class="input-shell" style="flex:1;min-width:180px;max-width:340px">
+            <input type="text" id="leadsFilterInput" class="field-input" placeholder="Filter by name, address, status…"
+              oninput="filterLeadsTable()" autocomplete="off">
+          </div>
+          <span class="leads-filter-meta" id="leadsFilterMeta"></span>
+        </div>
+
+        <div class="table-shell">
+          <div class="table-scroll">
+            <table class="crm-table" id="leadsDetailTable">
+              <thead>
+                <tr>
+                  <th class="col-check"><input type="checkbox" id="leadsSelectAll" onchange="toggleSelectAll(this)" title="Select all visible"></th>
+                  <th class="col-num">#</th>
+                  <th class="col-name">Business Name</th>
+                  <th class="col-address">Address</th>
+                  <th class="col-website">Website</th>
+                  <th class="col-phone">Phone</th>
+                  <th class="col-status">Status</th>
+                </tr>
+              </thead>
+              <tbody id="leadsDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         VIEW: CRM
+    ══════════════════════════════════════════════ -->
+    <div id="view-crm" class="app-view" style="display:none">
+      <!-- Library grid -->
+      <section id="crmLibrary">
+        <div class="lib-header">
+          <div>
+            <div class="section-eyebrow"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Enriched records</div>
+            <h2 class="section-title">CRM Manager</h2>
+            <p class="section-sub">Enriched leads with verified websites, full addresses, and phone numbers.</p>
+          </div>
+          <button class="btn-ghost" onclick="loadCrmLibrary()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="file-grid" id="crmGrid"></div>
+      </section>
+
+      <!-- File detail -->
+      <section id="crmDetail" style="display:none">
+        <div class="detail-header">
+          <button class="btn-ghost" onclick="closeCrmDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            Back to CRM
+          </button>
+          <div class="detail-title-row">
+            <h3 id="crmDetailName"></h3>
+            <div class="detail-actions">
+              <button class="btn-ghost" onclick="exportCrmFile()">Export CSV</button>
+              <button class="btn-find" id="crmGenerateEmailsBtn" onclick="generateSelectedCrmEmails()" style="display:none">
+                Generate Emails (<span id="crmEmailSelectedCount">0</span>)
+              </button>
+              <button class="btn-danger" id="crmDeleteSelectedBtn" onclick="deleteSelectedCrm()" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                Delete Selected (<span id="crmSelectedCount">0</span>)
+              </button>
+              <button class="btn-danger" onclick="deleteCrmFile()">Delete File</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="leads-filter-bar">
+          <div class="input-shell" style="flex:1;min-width:180px;max-width:340px">
+            <input type="text" id="crmFilterInput" class="field-input" placeholder="Filter by name, address, status…"
+              oninput="filterCrmTable()" autocomplete="off">
+          </div>
+          <!-- Status quick-filters -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="crm-filter-chip active" id="crmChipAll"    onclick="setCrmStatusFilter('all',this)">All</button>
+            <button class="crm-filter-chip"        id="crmChipOp"     onclick="setCrmStatusFilter('operational',this)">Operational</button>
+            <button class="crm-filter-chip"        id="crmChipTemp"   onclick="setCrmStatusFilter('temporarily',this)">Temp Closed</button>
+            <button class="crm-filter-chip"        id="crmChipPerm"   onclick="setCrmStatusFilter('permanently',this)">Perm Closed</button>
+            <button class="crm-filter-chip"        id="crmChipUnknown" onclick="setCrmStatusFilter('unknown',this)">Unknown</button>
+          </div>
+          <span class="leads-filter-meta" id="crmFilterMeta"></span>
+        </div>
+
+        <div class="batch-panel" id="crmEmailProgress" style="display:none">
+          <div class="batch-head">
+            <div>
+              <strong id="crmEmailProgressTitle">Generating emails…</strong>
+              <span id="crmEmailProgressSub">Preparing selected leads.</span>
+            </div>
+            <span class="batch-count" id="crmEmailProgressCount">0 / 0</span>
+          </div>
+          <div class="batch-bar"><span id="crmEmailProgressBar"></span></div>
+          <div class="batch-log" id="crmEmailLog"></div>
+        </div>
+
+        <div class="table-shell">
+          <div class="table-scroll">
+            <table class="crm-table" id="crmDetailTable">
+              <thead>
+                <tr>
+                  <th class="col-check"><input type="checkbox" id="crmSelectAll" onchange="toggleCrmSelectAll(this)" title="Select all visible"></th>
+                  <th class="col-num">#</th>
+                  <th class="col-name">Business Name</th>
+                  <th class="col-address">Full Address</th>
+                  <th class="col-website">Website</th>
+                  <th class="col-social">Social</th>
+                  <th class="col-phone">Phone</th>
+                  <th class="col-status">Status</th>
+                  <th style="width:100px">Confidence</th>
+                  <th style="width:110px">Source</th>
+                  <th style="width:100px">AI Pitch</th>
+                </tr>
+              </thead>
+              <tbody id="crmDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         VIEW: EMAIL LIST
+    ══════════════════════════════════════════════ -->
+    <div id="view-emails" class="app-view" style="display:none">
+
+      <!-- Library grid -->
+      <section id="emailsLibrary">
+        <div class="lib-header">
+          <div>
+            <div class="section-eyebrow" style="color:var(--cyan)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Decision-maker contacts
+            </div>
+            <h2 class="section-title">Email List</h2>
+            <p class="section-sub">Saved contact email files. Click any file to view or export.</p>
+          </div>
+          <button class="btn-ghost" onclick="loadEmailsLibrary()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="file-grid" id="emailsGrid"></div>
+      </section>
+
+      <!-- File detail -->
+      <section id="emailsDetail" style="display:none">
+        <div class="detail-header">
+          <button class="btn-ghost" onclick="closeEmailsDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            Back to Email List
+          </button>
+          <div class="detail-title-row">
+            <h3 id="emailsDetailName"></h3>
+            <div class="detail-actions">
+              <button class="btn-export" onclick="exportEmailsFile()" style="background:var(--cyan);border-color:var(--cyan);color:#0a1f21">Export CSV</button>
+              <button class="btn-danger" onclick="deleteEmailsFile()">Delete File</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-shell">
+          <div class="table-scroll">
+            <table class="crm-table">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th class="col-name">Company</th>
+                  <th class="col-website">Website</th>
+                  <th class="col-person">Service / Person</th>
+                  <th class="col-jobtitle">Subject / Job Title</th>
+                  <th class="col-email">Generated Email / Email</th>
+                  <th style="width:90px">Status</th>
+                  <th style="width:130px">Source Lead</th>
+                </tr>
+              </thead>
+              <tbody id="emailsDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════════
+       SAVE MODAL
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="saveModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
+    <div class="modal-shell">
+      <div class="modal-header">
+        <h3 id="saveModalTitle">Save scrape results?</h3>
+        <p>Save these <strong id="saveCount">0</strong> leads to your Leads Library as a named file.</p>
+      </div>
+      <div class="modal-body">
+        <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0">
+          <label class="field-tag">File name</label>
+          <div class="input-shell">
+            <input type="text" id="saveFileName" class="field-input" placeholder="e.g. nyc-restaurants-apr29" style="padding-right:14px">
+          </div>
+          <p style="color:var(--muted);font-size:.78rem;margin-top:4px">Letters, numbers, hyphens and underscores only.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeSaveModal()">Don't save</button>
+        <button class="btn-find" onclick="confirmSave()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save to Leads
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       AI PITCH MODAL
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="aiModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="aiModalTitle">
+    <div class="modal-shell" style="max-width:600px;">
+      <div class="modal-header">
+        <h3 id="aiModalTitle">AI Sales Pitch Generator</h3>
+        <p>Generating personalized cold email for <strong id="aiLeadName">...</strong></p>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 12px; text-align: right;">
+          <button class="btn-ghost" style="padding: 4px 8px; font-size: 0.75rem;" onclick="toggleAiSettings()">⚙️ Connection Settings</button>
+        </div>
+        <div id="aiSettingsPanel" style="display:none; padding:12px; border-radius:6px; margin-bottom:16px;">
+          <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0; margin-bottom:12px;">
+            <label class="field-tag">Llama.cpp Network IP / Base URL</label>
+            <div class="input-shell">
+              <input type="text" id="aiBaseUrl" class="field-input" placeholder="e.g., http://192.168.1.100:8080/v1" value="http://192.168.1.146:8080/v1">
+            </div>
+          </div>
+          <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0;">
+            <label class="field-tag">Model Name</label>
+            <div class="input-shell">
+              <input type="text" id="aiModelName" class="field-input" placeholder="e.g., llama3" value="llama3">
+            </div>
+          </div>
+        </div>
+
+        <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0; margin-bottom:16px;">
+          <label class="field-tag">Service to Pitch (Value Proposition)</label>
+          <div class="input-shell dropdown-wrap">
+            <select id="aiServiceSelect" class="field-input" onchange="handleAiServiceChange()" style="appearance:auto; padding-right:14px;">
+              <option value="expert Performance Marketing to turn ad spend into predictable growth and maximize ROI">General Performance Marketing</option>
+              <option value="Google Ads Management to capture high-intent search traffic and scale revenue">Google Ads Management</option>
+              <option value="LinkedIn Ads tailored for high-quality B2B lead generation">LinkedIn Ads for B2B</option>
+              <option value="Meta Ads (Facebook & Instagram) to scale brand presence and drive direct response">Meta Ads (FB/IG)</option>
+              <option value="Advanced Performance Tracking & Attribution to ensure every dollar is tracked">Tracking & Attribution</option>
+              <option value="custom">Custom Service...</option>
+            </select>
+          </div>
+          <div class="input-shell" id="aiCustomPropWrapper" style="display:none; margin-top:8px;">
+            <input type="text" id="aiValueProp" class="field-input" placeholder="Enter your custom value proposition...">
+          </div>
+          <p style="color:var(--muted);font-size:.78rem;margin-top:4px">Select a service from WIF Marketing or write your own to customize the pitch.</p>
+        </div>
+        <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0;">
+          <label class="field-tag">Generated Email</label>
+          <div class="input-shell" style="height:auto;">
+            <textarea id="aiEmailResult" class="field-input" style="height:200px; resize:vertical; padding:12px;" placeholder="Click 'Generate' to create a pitch..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeAiModal()">Close</button>
+        <button class="btn-ghost" id="aiCopyBtn" onclick="copyAiEmail()" style="display:none;">Copy to Clipboard</button>
+        <button class="btn-find" id="aiGenerateBtn" onclick="generateAiPitch()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          <span id="aiGenerateBtnText">Generate Pitch</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-wrap" id="errorToast" style="display:none" role="alert">
+    <div class="toast-shell">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errorMsg">Error</span>
+    </div>
+  </div>
+
+  <script src="leaddata.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
