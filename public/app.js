@@ -221,7 +221,6 @@ const hostedFileIndex = {
   leads: new Map(),
   crm: new Map(),
   'final-list': new Map(),
-  'fb-page-id-reports': new Map(),
 };
 const activeHostedJobs = {
   search: null,
@@ -233,14 +232,13 @@ let pendingImportKind = null;
 let currentLeadsFileMeta = null;
 let currentCrmFileMeta = null;
 let currentFinalListFileMeta = null;
-let currentEmailsFileMeta = null;
 
 function isHostedMode() {
   return !!(hostedApi && hostedApi.isHosted());
 }
 
 function mapKind(kind) {
-  return kind === 'emails' ? 'fb-page-id-reports' : kind;
+  return kind;
 }
 
 function registerHostedFiles(kind, files) {
@@ -352,7 +350,6 @@ async function handleImportFileChange(event) {
       if (pendingImportKind === 'leads') loadLeadsLibrary();
       else if (pendingImportKind === 'crm') loadCrmLibrary();
       else if (pendingImportKind === 'final-list') loadFinalList();
-      else if (pendingImportKind === 'fb-page-id-reports') loadEmailsList();
     } catch (error) {
       showToast(`Import failed: ${error.message}`);
     }
@@ -533,7 +530,6 @@ function switchView(view) {
   if (view === 'crm')    loadCrmLibrary();
   if (view === 'final-list') {
     loadFinalList();
-    loadEmailsList();
   }
 }
 
@@ -1582,7 +1578,6 @@ async function getFbPageIdsForCurrentCrm() {
       showToast(`✅ Updated CRM — ${summary.found || 0} Page IDs found, ${summary.updated || 0} row(s) updated.`);
       setAgentStatus('done', 'FB Page IDs complete');
       await refreshCurrentCrmFile();
-      loadEmailsList();
       return;
     }
 
@@ -1908,179 +1903,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
-
-/* ════════════════════════════════════════════════
-   FB PAGE ID REPORTS
-════════════════════════════════════════════════ */
-let currentEmailsData = [];
-let currentEmailsFile = null;
-
-async function loadEmailsList() {
-  const grid = document.getElementById('emailsGrid');
-  if (!grid) return;
-  grid.innerHTML = '<div class="file-empty">Loading...</div>';
-  document.getElementById('emailsDetail').style.display = 'none';
-  document.getElementById('emailsLibrary').style.display = 'block';
-  try {
-    if (isHostedMode()) {
-      const files = registerHostedFiles('fb-page-id-reports', await hostedApi.listFiles('fb-page-id-reports'));
-      if (!files.length) {
-        grid.innerHTML = '<div class="file-empty">No FB Page ID report files yet.</div>';
-        return;
-      }
-      grid.innerHTML = files.map(f => {
-        return `
-        <div class="file-card crm-card" onclick="openEmailsFile('${escAttr(f.name)}')">
-          <div class="file-icon" style="background:rgba(56,152,255,0.12);color:var(--blue)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-          </div>
-          <div class="file-info">
-            <h4>${esc(f.name)}</h4>
-            <p>${f.record_count || '?'} items · ${formatDate(f.created_at)}</p>
-          </div>
-        </div>`;
-      }).join('');
-      return;
-    }
-    const r = await fetch('/api/emails/files');
-    const files = (await readJsonResponse(r, 'Load FB Page ID files'))
-      .filter(f => f.name.includes('fb-page-ids'));
-    if (!files.length) {
-      grid.innerHTML = '<div class="file-empty">No FB Page ID report files yet.</div>';
-      return;
-    }
-    grid.innerHTML = files.map(f => {
-      return `
-      <div class="file-card crm-card" onclick="openEmailsFile('${escAttr(f.name)}')">
-        <div class="file-icon" style="background:rgba(56,152,255,0.12);color:var(--blue)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-        </div>
-        <div class="file-info">
-          <h4>${esc(f.name)}</h4>
-          <p>${f.leadCount || '?'} items · ${formatDate(f.createdAt)}</p>
-        </div>
-      </div>`;
-    }).join('');
-  } catch {
-    grid.innerHTML = '<div class="file-empty">Failed to load files.</div>';
-  }
-}
-
-async function openEmailsFile(name) {
-  const scroll = document.getElementById('emailsTableScroll');
-  scroll.innerHTML = 'Loading...';
-  try {
-    if (isHostedMode()) {
-      const payload = await loadHostedFile('fb-page-id-reports', name);
-      currentEmailsData = payload.data;
-      currentEmailsFile = name;
-      currentEmailsFileMeta = payload.file || payload.meta;
-      document.getElementById('emailsLibrary').style.display = 'none';
-      document.getElementById('emailsDetail').style.display = 'block';
-      document.getElementById('emailsDetailName').textContent = name;
-      renderEmailsTable(currentEmailsData, name);
-      return;
-    }
-    const r = await fetch('/api/emails/file/' + encodeURIComponent(name));
-    currentEmailsData = await readJsonResponse(r, 'Open FB Page ID file');
-    currentEmailsFile = name;
-    document.getElementById('emailsLibrary').style.display = 'none';
-    document.getElementById('emailsDetail').style.display = 'block';
-    document.getElementById('emailsDetailName').textContent = name;
-    renderEmailsTable(currentEmailsData, name);
-  } catch {
-    scroll.innerHTML = 'Failed to load file content.';
-  }
-}
-
-function closeEmailsDetail() {
-  document.getElementById('emailsDetail').style.display = 'none';
-  document.getElementById('emailsLibrary').style.display = 'block';
-  currentEmailsFile = null;
-  currentEmailsFileMeta = null;
-  currentEmailsData = [];
-}
-
-function renderEmailsTable(items, filename) {
-  const meta = document.getElementById('emailsMeta');
-  if (meta) meta.textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
-  const scroll = document.getElementById('emailsTableScroll');
-  
-  if (!items.length) {
-    scroll.innerHTML = 'No data found in file.';
-    return;
-  }
-
-  const rows = items.map((item, i) => `
-      <tr class="row-enter" style="animation-delay:${i*12}ms">
-        <td class="col-num">${i+1}</td>
-        <td class="col-name">${esc((item.names || []).join(', ') || '—')}</td>
-        <td class="col-website">${linkCell(item.website || (item.websites || [])[0], 'Site')}</td>
-        <td class="col-website">${linkCell(item.facebook_url, 'FB')}</td>
-        <td style="font-family:var(--mono)">${esc(item.facebook_page_id || '—')}</td>
-        <td>${esc(item.extraction_source || '—')}</td>
-        <td style="color:${item.status === 'found' ? 'var(--green)' : 'var(--danger)'}">${esc(item.status || '—')}</td>
-        <td style="color:var(--muted);font-size:.78rem">${esc(item.error || '—')}</td>
-        <td style="color:var(--muted);font-size:.78rem">${esc(item.scraped_at ? new Date(item.scraped_at).toLocaleString() : '—')}</td>
-      </tr>
-  `).join('');
-
-  scroll.innerHTML = `
-      <table class="crm-table">
-        <thead>
-          <tr>
-            <th class="col-num">#</th>
-            <th class="col-name">Names</th>
-            <th class="col-website">Website</th>
-            <th class="col-website">Facebook URL</th>
-            <th>Page ID</th>
-            <th>Source</th>
-            <th>Status</th>
-            <th>Error</th>
-            <th>Scraped At</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-  `;
-}
-
-function emailsToCSV(items) {
-  if (!items.length) return '';
-  const H = ['Names', 'Website', 'Websites', 'Facebook URL', 'Page ID', 'Source', 'Status', 'Error', 'Scraped At'];
-  const rows = items.map(item => [
-    (item.names || []).join(' | '),
-    item.website,
-    (item.websites || []).join(' | '),
-    item.facebook_url,
-    item.facebook_page_id,
-    item.extraction_source,
-    item.status,
-    item.error,
-    item.scraped_at
-  ].map(v => `"${String(v || '').replace(/"/g,'""')}"`).join(','));
-  return [H.join(','), ...rows].join('\n');
-}
-
-function exportEmailsFile() {
-  if (!currentEmailsData.length || !currentEmailsFile) return;
-  const base = currentEmailsFile.replace(/\.json$/i, '');
-  downloadCSV(emailsToCSV(currentEmailsData), `${base}.csv`);
-}
-
-async function clearEmailsFile() {
-  if (!currentEmailsFile || !confirm(`Delete "${currentEmailsFile}"?`)) return;
-  try {
-    if (isHostedMode()) {
-      await hostedApi.deleteFile(currentEmailsFileMeta.id);
-      showToast('File deleted.');
-      closeEmailsDetail();
-      loadEmailsList();
-      return;
-    }
-    await fetch('/api/emails/file/' + encodeURIComponent(currentEmailsFile), { method:'DELETE' });
-    showToast('File deleted.');
-    closeEmailsDetail();
-    loadEmailsList();
-  } catch { showToast('Delete failed.'); }
-}

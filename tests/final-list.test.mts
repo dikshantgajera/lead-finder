@@ -331,7 +331,8 @@ test("Final List UI is renamed and exposes the saved-record columns", () => {
   assert.match(html, /Competitor 1/);
   assert.match(html, /Competitor 2/);
   assert.match(html, /Checked At/);
+  assert.doesNotMatch(html, /FB Page ID Reports|emailsLibrary|emailsDetail|fb-page-id-reports/);
   assert.match(app, /\/api\/crm\/find-ads/);
   assert.match(app, /\/api\/final-list/);
-  assert.doesNotMatch(app, /Email List|email list|view-emails|tab-emails/);
+  assert.doesNotMatch(app, /Email List|email list|view-emails|tab-emails|loadEmailsList|emailsGrid|fb-page-id-reports/);
 });
