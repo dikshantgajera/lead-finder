@@ -17,6 +17,14 @@ test('bestBusinessStatus prefers permanent closure over weaker statuses', () => 
   assert.equal(__test.bestBusinessStatus('', 'Operational'), 'Operational');
 });
 
+test('bestBusinessCategory keeps Google Maps category text and ignores panel actions', () => {
+  assert.equal(__test.cleanBusinessCategory('Category: Cell phone store'), 'Cell phone store');
+  assert.equal(__test.cleanBusinessCategory('Website designer'), 'Website designer');
+  assert.equal(__test.cleanBusinessCategory('Directions'), '');
+  assert.equal(__test.cleanBusinessCategory('4.6 stars 128 reviews'), '');
+  assert.equal(__test.bestBusinessCategory(['Directions', 'Category: Restaurant', 'Open now']), 'Restaurant');
+});
+
 test('scoreSearchWebsiteCandidate prefers likely official sites and rejects directories', () => {
   const lead = {
     name: 'AKV Energy Solutions',

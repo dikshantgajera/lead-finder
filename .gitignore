@@ -1,6 +1,8 @@
 /node_modules
 /meta-ads-library/node_modules
 /dist
+.wrangler/
 /data/mcp-cache/*.json
 .dev.vars
 /data
+HOSTED_SETUP.md

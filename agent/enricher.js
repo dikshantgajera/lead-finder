@@ -99,6 +99,32 @@ function extractBusinessStatus(value) {
   return '';
 }
 
+function cleanBusinessCategory(value) {
+  let text = String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s:.-]+|[\s:.-]+$/g, '')
+    .trim();
+  text = text.replace(/^category\s*:?\s*/i, '').trim();
+  text = text.replace(/\s+[·•]\s*.*$/, '').trim();
+
+  if (!text || text.length < 2 || text.length > 80) return '';
+  if (/https?:\/\/|www\.|@/.test(text)) return '';
+  if (/\+?\d[\d\s().-]{5,}\d/.test(text)) return '';
+  if (/\b(stars?|reviews?|rating|ratings|photos?|questions?|answers?)\b/i.test(text)) return '';
+  if (/^(open|closed|closes|opens|hours|located in|suggest an edit|own this business|claim this business|copy)\b/i.test(text)) return '';
+  if (['website', 'directions', 'save', 'share', 'call', 'menu', 'order', 'book', 'address', 'phone'].includes(text.toLowerCase())) return '';
+  if (/^[\d.,]+$/.test(text)) return '';
+  return text;
+}
+
+function bestBusinessCategory(...values) {
+  for (const value of values.flat()) {
+    const category = cleanBusinessCategory(value);
+    if (category) return category;
+  }
+  return '';
+}
+
 function phoneKey(phone) {
   return String(phone || '').replace(/\D/g, '');
 }
@@ -412,6 +438,42 @@ async function textFromSelectors(page, selectors, label = '') {
   return '';
 }
 
+async function businessCategoryFromGoogleMaps(page) {
+  const candidates = await page.evaluate(() => {
+    const selectors = [
+      '[jsaction*="pane.rating.category"]',
+      'button[jsaction*="rating.category"]',
+      'button[jsaction*="category"]',
+      '[aria-label^="Category:"]',
+      '[aria-label*="Category:"]',
+      'button.DkEaL',
+      '.DkEaL',
+    ];
+    const values = [];
+    const seen = new Set();
+    const pushNode = node => {
+      if (!node || seen.has(node)) return;
+      seen.add(node);
+      values.push(node.getAttribute('aria-label') || '');
+      values.push(node.innerText || node.textContent || '');
+    };
+
+    selectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(pushNode);
+    });
+
+    document.querySelectorAll('button, [role="button"], [aria-label]').forEach(node => {
+      const aria = node.getAttribute('aria-label') || '';
+      const action = node.getAttribute('jsaction') || '';
+      if (/^category:/i.test(aria) || /rating\.category|category/i.test(action)) pushNode(node);
+    });
+
+    return values.filter(Boolean);
+  }).catch(() => []);
+
+  return bestBusinessCategory(candidates);
+}
+
 async function fromGoogleSearchProfile(page, lead, onProgress) {
   const result = {
     website: '',
@@ -532,6 +594,7 @@ async function fromGoogleMaps(page, lead, onProgress) {
     website:'',
     address:'',
     phone:'',
+    category:'',
     status:'',
     source:'google_maps',
     social_profiles: emptySocialProfiles()
@@ -593,12 +656,14 @@ async function fromGoogleMaps(page, lead, onProgress) {
       'a[href^="tel:"]',
     ], 'Phone');
     if (result.phone.startsWith('tel:')) result.phone = result.phone.slice(4);
+    result.category = await businessCategoryFromGoogleMaps(page);
     result.status = extractBusinessStatus(await page.evaluate(() => document.body.innerText || '').catch(() => ''));
 
     if (result.website) onProgress(`    ✅ Website (Maps): ${result.website}`);
     else                onProgress(`    ⚠️  No website in Maps profile`);
     if (result.address) onProgress(`    ✅ Address (Maps): ${result.address}`);
     if (result.phone)   onProgress(`    📞 Phone (Maps): ${result.phone}`);
+    if (result.category) onProgress(`    ✅ Category (Maps): ${result.category}`);
     if (result.status)  onProgress(`    ✅ Status (Maps): ${result.status}`);
 
     result.social_profiles = await socialProfilesFromCurrentPage(page);
@@ -684,6 +749,8 @@ async function enrichOne(page, lead, onProgress) {
     website_full:  isUsableWebsite(lead.website) ? lead.website : '',
     address_full:  lead.address || '',
     phone_full:    lead.phone   || '',
+    category:      lead.category || lead.business_category || lead.type || '',
+    business_category: lead.business_category || lead.category || lead.type || '',
     status:        normalizeStatusText(lead.status || '') || lead.status || '',
     phone_original: lead.phone || '',
     phone_google_maps: '',
@@ -712,6 +779,10 @@ async function enrichOne(page, lead, onProgress) {
   if (maps.phone) {
     out.phone_full = maps.phone;
     out.phone_google_maps = maps.phone;
+  }
+  if (maps.category) {
+    out.business_category = maps.category;
+    if (!out.category) out.category = maps.category;
   }
   if (maps.status) out.status = bestBusinessStatus(maps.status, out.status);
 
@@ -852,6 +923,8 @@ module.exports = {
   stopEnrichment,
   __test: {
     extractBusinessStatus,
+    cleanBusinessCategory,
+    bestBusinessCategory,
     scoreSearchWebsiteCandidate,
     bestBusinessStatus,
   },

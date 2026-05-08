@@ -215,6 +215,7 @@ async function dispatchWorkflow(env, workflowName, jobId) {
       headers: {
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        'User-Agent': 'leadfinder-worker',
         'X-GitHub-Api-Version': '2022-11-28',
         'content-type': 'application/json',
       },
@@ -358,6 +359,14 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === '/api/health') return json(request, { status: 'ok', timestamp: new Date().toISOString() });
+      if (url.pathname === '/') {
+        return json(request, {
+          status: 'ok',
+          service: 'leadfinder-worker',
+          message: 'Worker is running. API routes require a signed-in Supabase session.',
+          health: '/api/health',
+        });
+      }
 
       const user = await verifyUser(request, env);
 
