@@ -1,0 +1,1586 @@
+[
+  {
+    "company": {
+      "name": "Stegbar Helensvale",
+      "phone": "+61 7 5537 0888",
+      "full_address": "6 Kingston Dr, Helensvale QLD 4212, Australia",
+      "website": "http://stegbar.com.au/?utm_source=google_my_business&utm_medium=web&utm_campaign=google_my_business&utm_id=google_my_business&utm_term=google+traffic+",
+      "facebook_url": "https://www.facebook.com/StegbarAU/",
+      "facebook_page_id": "1820291604710457",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 200,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 0,
+    "checked_at": "2026-05-08T05:00:42.863Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 200,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+    "facebook_page_id": "1820291604710457",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~200 results",
+      "library_ids_sample": [
+        "1691282745208774",
+        "972011541999294",
+        "1336830358265597",
+        "1729148508069888",
+        "2180779926021572"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Stegbar Geelong",
+      "phone": "+61 1800 681 168",
+      "full_address": "137B Fyans St, South Geelong VIC 3220, Australia",
+      "website": "http://stegbar.com.au/?utm_source=google_my_business&utm_medium=web&utm_campaign=google_my_business&utm_id=google_my_business&utm_term=google+traffic+",
+      "facebook_url": "https://www.facebook.com/StegbarAU/",
+      "facebook_page_id": "1820291604710457",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 200,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 1,
+    "checked_at": "2026-05-08T05:00:51.466Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 200,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+    "facebook_page_id": "1820291604710457",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~200 results",
+      "library_ids_sample": [
+        "1691282745208774",
+        "972011541999294",
+        "1336830358265597",
+        "1729148508069888",
+        "2180779926021572"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Ricoma Australia",
+      "phone": "+61 2 8811 1927",
+      "full_address": "Unit 17/167 Prospect Hwy, Seven Hills NSW 2147, Australia",
+      "website": "http://www.ricoma.com.au/",
+      "facebook_url": "https://www.facebook.com/ricoma.australia/",
+      "facebook_page_id": "1367665803324060",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1367665803324060",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 4,
+    "checked_at": "2026-05-08T05:00:51.466Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1367665803324060",
+    "facebook_page_id": "1367665803324060",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "WK Stone Natural Stone Supplier Melbourne",
+      "phone": "+61 3 9585 4706",
+      "full_address": "52 Babbage Dr, Dandenong South VIC 3175, Australia",
+      "website": "http://www.wk.com.au/",
+      "facebook_url": "https://www.facebook.com/WKQuantumQuartz",
+      "facebook_page_id": "209609515724054",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=209609515724054",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 6,
+    "checked_at": "2026-05-08T05:00:59.692Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=209609515724054",
+    "facebook_page_id": "209609515724054",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Caesarstone Subiaco Showroom",
+      "phone": "+61 1300 119 119",
+      "full_address": "14/55 Salvado Rd, Subiaco WA 6008, Australia",
+      "website": "http://www.caesarstone.com.au/",
+      "facebook_url": "https://www.facebook.com/CaesarstoneAU",
+      "facebook_page_id": "195746007131302",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 37,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=195746007131302",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 7,
+    "checked_at": "2026-05-08T05:01:07.918Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 37,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=195746007131302",
+    "facebook_page_id": "195746007131302",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~37 results",
+      "library_ids_sample": [
+        "4513200955616045",
+        "1357228846458816",
+        "965017086227950",
+        "2023542361900968",
+        "918422917923468"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Europe Imports Pty Ltd",
+      "phone": "+61 2 9624 3929",
+      "full_address": "Unit 1/360 Vardys Rd, Kings Park NSW 2148, Australia",
+      "website": "http://europeimports.com.au/",
+      "facebook_url": "https://www.facebook.com/EzarriGlassMosaicsAustralia",
+      "facebook_page_id": "253780184750992",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 10,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=253780184750992",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 10,
+    "checked_at": "2026-05-08T05:01:16.146Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 10,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=253780184750992",
+    "facebook_page_id": "253780184750992",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~10 results",
+      "library_ids_sample": [
+        "1464701378548209",
+        "1255396199502034",
+        "935329479458417",
+        "4366946303590533",
+        "966339389069464"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Pro Flooring Central Coast",
+      "phone": "+61 2 4342 6666",
+      "full_address": "256 West St, Umina Beach NSW 2257, Australia",
+      "website": "http://www.proflooring.com.au/",
+      "facebook_url": "https://www.facebook.com/profile.php?id=100059053279187",
+      "facebook_page_id": "1444705729120821",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1444705729120821",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 12,
+    "checked_at": "2026-05-08T05:01:24.375Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1444705729120821",
+    "facebook_page_id": "1444705729120821",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Stegbar Chatswood",
+      "phone": "+61 1800 681 168",
+      "full_address": "122-126 Victoria Ave, Chatswood NSW 2067, Australia",
+      "website": "http://stegbar.com.au/?utm_source=google_my_business&utm_medium=web&utm_campaign=google_my_business&utm_id=google_my_business&utm_term=google+traffic+",
+      "facebook_url": "https://www.facebook.com/StegbarAU/",
+      "facebook_page_id": "1820291604710457",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 200,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 13,
+    "checked_at": "2026-05-08T05:01:32.592Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 200,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+    "facebook_page_id": "1820291604710457",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~200 results",
+      "library_ids_sample": [
+        "1691282745208774",
+        "972011541999294",
+        "1336830358265597",
+        "1729148508069888",
+        "2180779926021572"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Embelton WA: Engineering & Commercial Flooring Trade Store",
+      "phone": "+61 8 9204 1300",
+      "full_address": "21 Pearson Way, Osborne Park WA 6017, Australia",
+      "website": "https://www.embelton.com/pages/perth-osborne-park",
+      "facebook_url": "https://www.facebook.com/embelton.au",
+      "facebook_page_id": "279833055973209",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=279833055973209",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 15,
+    "checked_at": "2026-05-08T05:01:32.592Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=279833055973209",
+    "facebook_page_id": "279833055973209",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Eos Bathware Moorabbin",
+      "phone": "+61 3 9041 6228",
+      "full_address": "10-12 Bibby Ct, Moorabbin VIC 3189, Australia",
+      "website": "https://eosbathware.com.au/",
+      "facebook_url": "https://www.facebook.com/Eos-Bathware-300783813611004/",
+      "facebook_page_id": "300783813611004",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 4,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=300783813611004",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 16,
+    "checked_at": "2026-05-08T05:01:40.820Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 4,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=300783813611004",
+    "facebook_page_id": "300783813611004",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~4 results",
+      "library_ids_sample": [
+        "26144180208598627",
+        "1452144353123748",
+        "1724989465487323",
+        "3859314501040939"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Sub-Zero Wolf Melbourne",
+      "phone": "+61 1300 808 859",
+      "full_address": "Ground Floor, Bank, House 11/19 Bank Pl, Melbourne VIC 3000, Australia",
+      "website": "http://au.subzero-wolf.com/en/",
+      "facebook_url": "https://www.facebook.com/subzerowolf",
+      "facebook_page_id": "80447323573",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 310,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=80447323573",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 18,
+    "checked_at": "2026-05-08T05:01:49.058Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 310,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=80447323573",
+    "facebook_page_id": "80447323573",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~310 results",
+      "library_ids_sample": [
+        "1300062518691391",
+        "1689507379153514",
+        "1700854064443404",
+        "1603159030960094",
+        "878341854976298"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Flokk Sydney",
+      "phone": "+61 477 183 000",
+      "full_address": "Shore Studios, 17/13 Hickson Rd, Dawes Point NSW 2000, Australia",
+      "website": "http://www.flokk.com/",
+      "facebook_url": "https://www.facebook.com/WeAreFlokk/",
+      "facebook_page_id": "591562584259448",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 26,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=591562584259448",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 20,
+    "checked_at": "2026-05-08T05:01:57.371Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 26,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=591562584259448",
+    "facebook_page_id": "591562584259448",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~26 results",
+      "library_ids_sample": [
+        "2035993470287966",
+        "1639176827357858",
+        "1670624207399065",
+        "1990961271455984",
+        "2128434754557358"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Coastal Designer Kitchens - Nambucca",
+      "phone": "+61 2 6568 7808",
+      "full_address": "20 Old Coast Rd, Nambucca Heads NSW 2448, Australia",
+      "website": "http://www.cdkitchens.com.au/",
+      "facebook_url": "https://www.facebook.com/CoastalDesignerKitchens",
+      "facebook_page_id": "241325589211166",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=241325589211166",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 22,
+    "checked_at": "2026-05-08T05:02:05.673Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=241325589211166",
+    "facebook_page_id": "241325589211166",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Macron",
+      "phone": "+61 426 726 722",
+      "full_address": "1/18 Main St, Osborne Park WA 6017, Australia",
+      "website": "https://www.macron.com/",
+      "facebook_url": "https://www.facebook.com/macronsports/",
+      "facebook_page_id": "210520865687906",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 3,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=210520865687906",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 23,
+    "checked_at": "2026-05-08T05:02:13.897Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 3,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=210520865687906",
+    "facebook_page_id": "210520865687906",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~3 results",
+      "library_ids_sample": [
+        "1631108944799572",
+        "1000056486046509"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Antique Mirror Glass Pty Ltd",
+      "phone": "+61 434 087 972",
+      "full_address": "6/8 Grevillea St, Byron Bay NSW 2481, Australia",
+      "website": "https://antiquemirrorglass.com.au/",
+      "facebook_url": "http://facebook.com/AntiqueMirrorGlassShop/",
+      "facebook_page_id": "559518994519818",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=559518994519818",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 25,
+    "checked_at": "2026-05-08T05:02:22.167Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=559518994519818",
+    "facebook_page_id": "559518994519818",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Sub-Zero Wolf Sydney",
+      "phone": "+61 1300 808 859",
+      "full_address": "63 Foveaux St Ground Floor, Surry Hills NSW 2010, Australia",
+      "website": "https://au.subzero-wolf.com/en/",
+      "facebook_url": "https://www.facebook.com/subzerowolf",
+      "facebook_page_id": "80447323573",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 310,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=80447323573",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 26,
+    "checked_at": "2026-05-08T05:02:30.401Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 310,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=80447323573",
+    "facebook_page_id": "80447323573",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~310 results",
+      "library_ids_sample": [
+        "1300062518691391",
+        "1689507379153514",
+        "1700854064443404",
+        "1603159030960094",
+        "878341854976298"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Di Pacci Coffee Company",
+      "phone": "+61 2 9758 0760",
+      "full_address": "97-99 Chapel St, Roselands NSW 2196, Australia",
+      "website": "http://www.dipacci.com.au/",
+      "facebook_url": "https://www.facebook.com/dipaccicoffeecompany/",
+      "facebook_page_id": "1801736466720237",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 3,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1801736466720237",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 28,
+    "checked_at": "2026-05-08T05:02:30.402Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 3,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1801736466720237",
+    "facebook_page_id": "1801736466720237",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~3 results",
+      "library_ids_sample": [
+        "1319530833232227",
+        "2459672617806856",
+        "968706312291893"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Michele & Son Upholsterers",
+      "phone": "+61 2 9560 1357",
+      "full_address": "Fabric Showroom, 240 Parramatta Road /Workshop, 230 Parramatta Rd, Stanmore NSW 2048, Australia",
+      "website": "http://micheleandson.com/",
+      "facebook_url": "https://www.facebook.com/micheleandsonupholsterers/",
+      "facebook_page_id": "1633666816861432",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1633666816861432",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 36,
+    "checked_at": "2026-05-08T05:02:38.636Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1633666816861432",
+    "facebook_page_id": "1633666816861432",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Stylish Wardrobes and Shower screens Showroom",
+      "phone": "+61 2 4637 7966",
+      "full_address": "Shop 1C/6 George Hunter Dr, Narellan NSW 2567, Australia",
+      "website": "https://stylishwardrobes.com.au/",
+      "facebook_url": "https://www.facebook.com/StylishWardrobes",
+      "facebook_page_id": "138945722848165",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=138945722848165",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 38,
+    "checked_at": "2026-05-08T05:02:50.338Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=138945722848165",
+    "facebook_page_id": "138945722848165",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Embelton Head Office Coburg - Engineering & Flooring Solutions",
+      "phone": "+61 3 9353 4811",
+      "full_address": "147-149 Bakers Rd, Coburg North VIC 3058, Australia",
+      "website": "http://embelton.com/",
+      "facebook_url": "https://www.facebook.com/embelton.au",
+      "facebook_page_id": "279833055973209",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=279833055973209",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 41,
+    "checked_at": "2026-05-08T05:02:58.788Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=279833055973209",
+    "facebook_page_id": "279833055973209",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "KNB Specialists & Builders Express | Kitchen and Bathroom Supplies",
+      "phone": "+61 2 9636 8700",
+      "full_address": "2/36 Stoddart Rd, Prospect NSW 2148, Australia",
+      "website": "https://buildersexpressnsw.com.au/",
+      "facebook_url": "https://www.facebook.com/buildersexpressnsw/",
+      "facebook_page_id": "1549062161979042",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1549062161979042",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 43,
+    "checked_at": "2026-05-08T05:02:58.790Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1549062161979042",
+    "facebook_page_id": "1549062161979042",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Macey & Moore | Designer Premium Cushions | Weekly New Drops | Sydney Based | Trade Welcome | Ready to Ship",
+      "phone": "+61 433 681 885",
+      "full_address": "Unit 4/48 Waratah St, Kirrawee NSW 2232, Australia",
+      "website": "http://www.macey.store/",
+      "facebook_url": "https://www.facebook.com/maceynmoore",
+      "facebook_page_id": "1227922370659124",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1227922370659124",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 45,
+    "checked_at": "2026-05-08T05:03:07.085Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1227922370659124",
+    "facebook_page_id": "1227922370659124",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "RHF Stone",
+      "phone": "+61 1300 743 786",
+      "full_address": "4 Lisa Pl, Coolaroo VIC 3048, Australia",
+      "website": "http://www.rhfstone.com.au/",
+      "facebook_url": "https://www.facebook.com/rhfstone/",
+      "facebook_page_id": "689945037725675",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=689945037725675",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 47,
+    "checked_at": "2026-05-08T05:03:15.627Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=689945037725675",
+    "facebook_page_id": "689945037725675",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "All Bathroom Gear",
+      "phone": "+61 7 3391 8628",
+      "full_address": "46 Ipswich Rd, Woolloongabba QLD 4102, Australia",
+      "website": "https://www.allbathroomgear.com.au/",
+      "facebook_url": "https://www.facebook.com/Allbathroomgear",
+      "facebook_page_id": "461464651014892",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=461464651014892",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 49,
+    "checked_at": "2026-05-08T05:03:23.898Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=461464651014892",
+    "facebook_page_id": "461464651014892",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Laminex Showroom Perth",
+      "phone": "+61 8 6151 7400",
+      "full_address": "426 Scarborough Beach Rd, Osborne Park WA 6017, Australia",
+      "website": "https://www.laminex.com.au/",
+      "facebook_url": "https://www.facebook.com/LaminexAU/",
+      "facebook_page_id": "466740343348684",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=466740343348684",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 50,
+    "checked_at": "2026-05-08T05:03:32.220Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=466740343348684",
+    "facebook_page_id": "466740343348684",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Seabreeze Kitchens",
+      "phone": "+61 2 9938 5477",
+      "full_address": "188 Harbord Rd, Brookvale NSW 2100, Australia",
+      "website": "https://www.seabreezekitchens.com.au/",
+      "facebook_url": "https://www.facebook.com/Seabreeze-Kitchens-113609161990062/",
+      "facebook_page_id": "113609161990062",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=113609161990062",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 52,
+    "checked_at": "2026-05-08T05:03:40.525Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=113609161990062",
+    "facebook_page_id": "113609161990062",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "The Bar Fridge Guys",
+      "phone": "+61 424 994 898",
+      "full_address": "1/121 Vulcan Rd, Canning Vale WA 6155, Australia",
+      "website": "http://www.thebarfridgeguys.com.au/",
+      "facebook_url": "https://www.facebook.com/thebarfridgeguys",
+      "facebook_page_id": "103918664792265",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=103918664792265",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 57,
+    "checked_at": "2026-05-08T05:03:48.806Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=103918664792265",
+    "facebook_page_id": "103918664792265",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Embelton Flooring Perth - Trade Store & Showroom",
+      "phone": "+61 8 9204 1300",
+      "full_address": "21 Pearson Way, Osborne Park WA 6017, Australia",
+      "website": "https://www.embelton.com/pages/perth-osborne-park",
+      "facebook_url": "https://www.facebook.com/embelton.au",
+      "facebook_page_id": "279833055973209",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=279833055973209",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 58,
+    "checked_at": "2026-05-08T05:03:57.155Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=279833055973209",
+    "facebook_page_id": "279833055973209",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Horsham Doors & Glass",
+      "phone": "+61 3 5382 4999",
+      "full_address": "34 Plumpton Rd, Horsham VIC 3400, Australia",
+      "website": "http://www.horshamdg.com.au/",
+      "facebook_url": "https://www.facebook.com/horshamdg/",
+      "facebook_page_id": "195504103857701",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=195504103857701",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 62,
+    "checked_at": "2026-05-08T05:03:57.155Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=195504103857701",
+    "facebook_page_id": "195504103857701",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Rollie Nation Showroom",
+      "phone": "+61 3 9000 0706",
+      "full_address": "180 Ferrars St, South Melbourne VIC 3205, Australia",
+      "website": "https://www.rollienation.com/",
+      "facebook_url": "https://www.facebook.com/RollieNation",
+      "facebook_page_id": "259494080756107",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=259494080756107",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 63,
+    "checked_at": "2026-05-08T05:04:07.919Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=259494080756107",
+    "facebook_page_id": "259494080756107",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Divine Goddess premium apparel, mats, and props for yoga and pilates",
+      "phone": "+61 2 9098 4200",
+      "full_address": "Suite 497/61 Jonson St, Byron Bay NSW 2481, Australia",
+      "website": "http://www.divinegoddess.com/",
+      "facebook_url": "https://www.facebook.com/divinegoddessyoga/",
+      "facebook_page_id": "195437933824215",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=195437933824215",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 64,
+    "checked_at": "2026-05-08T05:04:20.621Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=195437933824215",
+    "facebook_page_id": "195437933824215",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "clear glass solutions",
+      "phone": "+61 3 5942 8444",
+      "full_address": "19b Tarmac Way, Pakenham VIC 3810, Australia",
+      "website": "https://www.clearglass.com.au/",
+      "facebook_url": "https://www.facebook.com/ClearGlassSolutions",
+      "facebook_page_id": "614160065317709",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=614160065317709",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 65,
+    "checked_at": "2026-05-08T05:04:33.178Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=614160065317709",
+    "facebook_page_id": "614160065317709",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Flower Box Home Fragrance",
+      "phone": "+61 8 6460 7739",
+      "full_address": "54 Catalano Cct, Canning Vale WA 6155, Australia",
+      "website": "http://flowerboxhomefragrance.com/?utm_source=google&utm_medium=wix_google_business_profile&utm_campaign=15506429046687225117",
+      "facebook_url": "https://www.facebook.com/flowerboxhomefragrance",
+      "facebook_page_id": "656897221160621",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=656897221160621",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 66,
+    "checked_at": "2026-05-08T05:04:41.763Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=656897221160621",
+    "facebook_page_id": "656897221160621",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Miele Experience Centre Adelaide (Appliance Sales, Advice & Supplies)",
+      "phone": "+61 1300 464 353",
+      "full_address": "83-85 Sir Donald Bradman Dr, Hilton SA 5033, Australia",
+      "website": "https://www.miele.com.au/experiences/adelaide",
+      "facebook_url": "https://www.facebook.com/Miele.Australia/",
+      "facebook_page_id": "1698005750430519",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1698005750430519",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 67,
+    "checked_at": "2026-05-08T05:04:50.098Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1698005750430519",
+    "facebook_page_id": "1698005750430519",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Stegbar Fortitude Valley",
+      "phone": "+61 1800 681 168",
+      "full_address": "3 Montpelier Rd, Bowen Hills QLD 4006, Australia",
+      "website": "http://stegbar.com.au/?utm_source=google_my_business&utm_medium=web&utm_campaign=google_my_business&utm_id=google_my_business&utm_term=google+traffic+",
+      "facebook_url": "https://www.facebook.com/StegbarAU/",
+      "facebook_page_id": "1820291604710457",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 200,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 68,
+    "checked_at": "2026-05-08T05:04:58.641Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 200,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+    "facebook_page_id": "1820291604710457",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~200 results",
+      "library_ids_sample": [
+        "1691282745208774",
+        "972011541999294",
+        "1336830358265597",
+        "1729148508069888",
+        "2180779926021572"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Lucas Blinds",
+      "phone": "+61 2 9531 7999",
+      "full_address": "Factory 11/1 Box Rd, Taren Point NSW 2229, Australia",
+      "website": "https://www.lucasblinds.com.au/",
+      "facebook_url": "https://www.facebook.com/lucasblinds",
+      "facebook_page_id": "227739797321522",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=227739797321522",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 69,
+    "checked_at": "2026-05-08T05:04:58.642Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=227739797321522",
+    "facebook_page_id": "227739797321522",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Cubispec - Washroom & Changeroom Solutions Perth",
+      "phone": "+61 1800 951 235",
+      "full_address": "200 St Georges Terrace, Perth WA 6000, Australia",
+      "website": "https://cubispec.com.au/",
+      "facebook_url": "https://www.facebook.com/cubispecwashroomsystems",
+      "facebook_page_id": "284078882064905",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=284078882064905",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 70,
+    "checked_at": "2026-05-08T05:05:07.050Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=284078882064905",
+    "facebook_page_id": "284078882064905",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Fisher & Paykel Sydney Experience Centre",
+      "phone": "+61 2 9096 4999",
+      "full_address": "G02/90-96 Bourke Rd, Alexandria NSW 2015, Australia",
+      "website": "https://www.fisherpaykel.com/au/inspiration/experience-centres/sydney/",
+      "facebook_url": "https://www.facebook.com/FisherPaykelAU",
+      "facebook_page_id": "101609993249745",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=101609993249745",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 71,
+    "checked_at": "2026-05-08T05:05:15.496Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=101609993249745",
+    "facebook_page_id": "101609993249745",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Stegbar Penrith",
+      "phone": "+61 1800 681 168",
+      "full_address": "139 Blaikie Rd, Jamisontown NSW 2750, Australia",
+      "website": "http://stegbar.com.au/?utm_source=google_my_business&utm_medium=web&utm_campaign=google_my_business&utm_id=google_my_business&utm_term=google+traffic+",
+      "facebook_url": "https://www.facebook.com/StegbarAU/",
+      "facebook_page_id": "1820291604710457",
+      "ads_status": "running_ads",
+      "running_ads": true,
+      "ads_found_count": 200,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 72,
+    "checked_at": "2026-05-08T05:05:23.787Z",
+    "reason": "running_ads",
+    "ads_status": "running_ads",
+    "running_ads": true,
+    "ads_found_count": 200,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=1820291604710457",
+    "facebook_page_id": "1820291604710457",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "~200 results",
+      "library_ids_sample": [
+        "1691282745208774",
+        "972011541999294",
+        "1336830358265597",
+        "1729148508069888",
+        "2180779926021572"
+      ]
+    }
+  },
+  {
+    "company": {
+      "name": "Showbags Galore",
+      "phone": "+61 413 606 820",
+      "full_address": "Unit 2/49 Sterling Rd, Minchinbury NSW 2770, Australia",
+      "website": "http://showbagsgalore.com.au/",
+      "facebook_url": "https://www.facebook.com/showbagsgalore",
+      "facebook_page_id": "196740387025627",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=196740387025627",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 74,
+    "checked_at": "2026-05-08T05:05:23.787Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=196740387025627",
+    "facebook_page_id": "196740387025627",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "NIKART Studio & Gallery – Fine Art Photography",
+      "phone": "+61 411 109 944",
+      "full_address": "7/20 Ponting St, Williamstown North VIC 3016, Australia",
+      "website": "http://www.nikartphotography.com/",
+      "facebook_url": "https://www.facebook.com/nikartphotography/",
+      "facebook_page_id": "761036927267792",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=761036927267792",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 75,
+    "checked_at": "2026-05-08T05:05:38.273Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=761036927267792",
+    "facebook_page_id": "761036927267792",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "ducksnest. | ARTISAN Furniture Australia",
+      "phone": "+61 3 5224 1444",
+      "full_address": "G01 15/35 Thistlethwaite St, South Melbourne VIC 3205, Australia",
+      "website": "https://www.ducksnest.com.au/",
+      "facebook_url": "https://www.facebook.com/ArtisanFurnitureAustralia/",
+      "facebook_page_id": "196699464070241",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=196699464070241",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 77,
+    "checked_at": "2026-05-08T05:05:46.679Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=196699464070241",
+    "facebook_page_id": "196699464070241",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Keyo International Pty Ltd",
+      "phone": "+61 414 577 813",
+      "full_address": "11/8 Kerta Rd, Kincumber NSW 2257, Australia",
+      "website": "https://www.keyointernational.com/",
+      "facebook_url": "https://www.facebook.com/keyosurfboards",
+      "facebook_page_id": "101152485981447",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=101152485981447",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 80,
+    "checked_at": "2026-05-08T05:05:54.930Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=101152485981447",
+    "facebook_page_id": "101152485981447",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Revolution Racegear",
+      "phone": "+61 3 9873 8700",
+      "full_address": "592 Whitehorse Rd, Mitcham VIC 3132, Australia",
+      "website": "http://www.revolutionracegear.com.au/?MMID=1503&SMID=1504",
+      "facebook_url": "https://www.facebook.com/RevRaceGear/",
+      "facebook_page_id": "374205532638787",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=374205532638787",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 81,
+    "checked_at": "2026-05-08T05:06:03.187Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=374205532638787",
+    "facebook_page_id": "374205532638787",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "SPACE By THYNK",
+      "phone": "+61 2 4028 6311",
+      "full_address": "Level 2/3 Bowden Way, Beresfield NSW 2322, Australia",
+      "website": "https://spacebythynk.com.au/",
+      "facebook_url": "https://www.facebook.com/SpacebyThynk/",
+      "facebook_page_id": "112473324405495",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=112473324405495",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 82,
+    "checked_at": "2026-05-08T05:06:11.727Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=112473324405495",
+    "facebook_page_id": "112473324405495",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "Williams Group Australia - Selection Centre (Ashmore)",
+      "phone": "+61 7 5501 1700",
+      "full_address": "640 Ashmore Rd, Molendinar QLD 4214, Australia",
+      "website": "https://linktr.ee/williamsgroupaustralia",
+      "facebook_url": "https://www.facebook.com/Williamsgroupau/",
+      "facebook_page_id": "492169524227947",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=492169524227947",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 87,
+    "checked_at": "2026-05-08T05:06:20.067Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=492169524227947",
+    "facebook_page_id": "492169524227947",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  },
+  {
+    "company": {
+      "name": "The Spot Sunshine Coast",
+      "phone": "+61 412 884 705",
+      "full_address": "Shed 9/1 Roys Rd, Beerwah QLD 4519, Australia",
+      "website": "http://www.thespotsunshinecoast.com.au/",
+      "facebook_url": "https://www.facebook.com/thespotsunnycoast",
+      "facebook_page_id": "100993059272542",
+      "ads_status": "not_running_ads",
+      "running_ads": false,
+      "ads_found_count": 0,
+      "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=100993059272542",
+      "country": "ALL"
+    },
+    "competitors": [],
+    "source_file": "leads-2026-05-07.json",
+    "source_index": 89,
+    "checked_at": "2026-05-08T05:06:28.440Z",
+    "reason": "not_running_ads",
+    "ads_status": "not_running_ads",
+    "running_ads": false,
+    "ads_found_count": 0,
+    "ads_library_url": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data%5Bdirection%5D=desc&sort_data%5Bmode%5D=total_impressions&view_all_page_id=100993059272542",
+    "facebook_page_id": "100993059272542",
+    "country": "ALL",
+    "evidence": {
+      "result_label": "No active ads detected",
+      "library_ids_sample": []
+    },
+    "warnings": [
+      "No active ad result count or Library ID was detected on the Ads Library page."
+    ]
+  }
+]

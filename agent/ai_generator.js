@@ -14,19 +14,29 @@ function normalizeBaseUrl(url) {
 async function parseJsonResponse(response) {
   const rawText = await response.text();
   const contentType = response.headers.get('content-type') || '';
-  const bodyStart = rawText.trim().slice(0, 120);
+  const bodyStart = rawText.trim().slice(0, 300);
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${bodyStart || 'Empty response'}`);
   }
 
-  if (!contentType.includes('application/json')) {
+  if (!contentType.toLowerCase().includes('application/json')) {
+    console.error('AI endpoint returned non-JSON', {
+      status: response.status,
+      contentType,
+      preview: bodyStart,
+    });
     throw new Error(`Non-JSON response: ${bodyStart || 'Empty response'}`);
   }
 
   try {
     return JSON.parse(rawText);
   } catch (error) {
+    console.error('AI endpoint returned invalid JSON', {
+      status: response.status,
+      contentType,
+      preview: bodyStart,
+    });
     throw new Error(`Invalid JSON response: ${bodyStart || error.message}`);
   }
 }

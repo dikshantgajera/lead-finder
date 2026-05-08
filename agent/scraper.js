@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 
 const TARGET_URL = 'https://app.targetron.com/local-businesses?limit=12';
+const DEFAULT_TARGET_LEAD_COUNT = 100;
 
 /** Sleep helper */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -167,13 +168,7 @@ async function extractCardsFromPage(page) {
   });
 }
 
-/**
- * Main scraping function
- * @param {object} params - { category, country, city }
- * @param {function} onProgress - callback for real-time progress messages
- * @returns {Array} leads - [{ name, address, status }, ...]
- */
-async function scrapeLeads({ category, country, city }, onProgress = () => {}) {
+async function createTargetronPage() {
   const browser = await chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -186,71 +181,158 @@ async function scrapeLeads({ category, country, city }, onProgress = () => {}) {
   });
 
   const page = await context.newPage();
+  return { browser, page };
+}
+
+async function applySearchFilters(page, { category, country, city }, onProgress) {
+  onProgress('Navigating to Targetron...');
+  await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 45000 });
+  await sleep(3000);
+
+  if (category) {
+    onProgress(`Setting category: ${category}`);
+    await fillAntSelect(page, 'input#rc_select_0', category).catch((e) =>
+      onProgress(`Category warning: ${e.message}`)
+    );
+  }
+
+  if (country) {
+    onProgress(`Setting country: ${country}`);
+    await fillAntSelect(page, 'input#rc_select_1', country).catch((e) =>
+      onProgress(`Country warning: ${e.message}`)
+    );
+  }
+
+  if (city) {
+    onProgress(`Setting city: ${city}`);
+    await fillAntSelect(page, 'input#rc_select_2', city).catch((e) =>
+      onProgress(`City warning: ${e.message}`)
+    );
+  }
+
+  onProgress('Clicking search button...');
+  try {
+    const searchBtn = page.locator('button.search-button, .ant-btn.search-button').first();
+    await searchBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await searchBtn.click();
+  } catch {
+    await page.keyboard.press('Enter');
+  }
+
+  onProgress('Waiting for results to load...');
+  await sleep(5000);
+}
+
+async function dismissModal(page) {
+  try {
+    await page.keyboard.press('Escape');
+    await sleep(600);
+    const closeBtn = page.locator('.ant-modal-close, .ant-modal-wrap button.ant-btn-default').first();
+    if (await closeBtn.isVisible().catch(() => false)) {
+      await closeBtn.click();
+      await sleep(600);
+    }
+  } catch { /* ignore */ }
+}
+
+async function getAvailablePageCount(page) {
+  return page.evaluate(() => {
+    const pageItems = Array.from(document.querySelectorAll(
+      '.ant-pagination-item, .ant-pagination-item a, [class*="pagination"] [title]'
+    ));
+
+    const numbers = pageItems
+      .flatMap((el) => [el.getAttribute('title'), el.textContent])
+      .map((value) => String(value || '').trim())
+      .filter((value) => /^\d+$/.test(value))
+      .map(Number)
+      .filter(Number.isFinite);
+
+    const pageSize = 12;
+    const bodyText = document.body.innerText || '';
+    const totalMatch = bodyText.match(/(?:of|total)\s+([\d,]+)\s+(?:results?|businesses?|records?|leads?)/i)
+      || bodyText.match(/([\d,]+)\s+(?:results?|businesses?|records?|leads?)\s+(?:found|available)/i);
+    const totalResults = totalMatch ? Number(totalMatch[1].replace(/,/g, '')) : 0;
+    const totalPagesFromResults = totalResults > 0 ? Math.ceil(totalResults / pageSize) : 0;
+
+    return Math.max(1, ...numbers, totalPagesFromResults);
+  });
+}
+
+async function goToNextResultsPage(page) {
+  const nextBtn = page.locator('.ant-pagination-next:not(.ant-pagination-disabled) button');
+  const canGoNext = await nextBtn.isVisible().catch(() => false);
+
+  if (!canGoNext) return false;
+
+  await dismissModal(page);
+  try {
+    await nextBtn.click({ timeout: 8000 });
+  } catch {
+    return false;
+  }
+
+  await sleep(3000);
+  return true;
+}
+
+async function advanceToPage(page, startPage, onProgress) {
+  for (let current = 1; current < startPage; current += 1) {
+    onProgress(`Skipping to selected start page ${startPage}: ${current + 1}/${startPage}`);
+    const moved = await goToNextResultsPage(page);
+    if (!moved) {
+      throw new Error(`Could not reach selected start page ${startPage}. Pagination stopped at page ${current}.`);
+    }
+  }
+
+  return startPage;
+}
+
+async function discoverLeadPages({ category, country, city }, onProgress = () => {}) {
+  const { browser, page } = await createTargetronPage();
+
+  try {
+    await applySearchFilters(page, { category, country, city }, onProgress);
+
+    const hasCards = await page.waitForSelector('.ant-space.card', { timeout: 15000 }).then(() => true).catch(() => false);
+    if (!hasCards) {
+      return { from: 0, to: 0, totalPages: 0 };
+    }
+
+    const totalPages = await getAvailablePageCount(page);
+    onProgress(`Pages available: 1 to ${totalPages}`);
+    return { from: 1, to: totalPages, totalPages };
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * Main scraping function
+ * @param {object} params - { category, country, city, startPage, targetLeadCount }
+ * @param {function} onProgress - callback for real-time progress messages
+ * @returns {Array} leads - [{ name, address, status }, ...]
+ */
+async function scrapeLeads({ category, country, city, startPage = 1, targetLeadCount = DEFAULT_TARGET_LEAD_COUNT }, onProgress = () => {}) {
+  const { browser, page } = await createTargetronPage();
   const leads = [];
 
   try {
-    onProgress('Navigating to Targetron...');
-    await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 45000 });
-    await sleep(3000);
+    const safeStartPage = Math.max(1, Number.parseInt(startPage, 10) || 1);
+    const safeTargetLeadCount = Math.max(1, Number.parseInt(targetLeadCount, 10) || DEFAULT_TARGET_LEAD_COUNT);
 
-    // ── Fill Category ──
-    if (category) {
-      onProgress(`Setting category: ${category}`);
-      await fillAntSelect(page, 'input#rc_select_0', category).catch((e) =>
-        onProgress(`Category warning: ${e.message}`)
-      );
+    await applySearchFilters(page, { category, country, city }, onProgress);
+
+    const totalPages = await getAvailablePageCount(page);
+    if (safeStartPage > totalPages) {
+      throw new Error(`Start page ${safeStartPage} is outside the available range 1 to ${totalPages}.`);
     }
 
-    // ── Fill Country ──
-    if (country) {
-      onProgress(`Setting country: ${country}`);
-      await fillAntSelect(page, 'input#rc_select_1', country).catch((e) =>
-        onProgress(`Country warning: ${e.message}`)
-      );
-    }
-
-    // ── Fill City ──
-    if (city) {
-      onProgress(`Setting city: ${city}`);
-      await fillAntSelect(page, 'input#rc_select_2', city).catch((e) =>
-        onProgress(`City warning: ${e.message}`)
-      );
-    }
-
-    // ── Click Search button ──
-    onProgress('Clicking search button...');
-    try {
-      const searchBtn = page.locator('button.search-button, .ant-btn.search-button').first();
-      await searchBtn.waitFor({ state: 'visible', timeout: 5000 });
-      await searchBtn.click();
-    } catch {
-      // Fallback: press Enter
-      await page.keyboard.press('Enter');
-    }
-
-    onProgress('Waiting for results to load...');
-    await sleep(5000);
-
-    // ── Helper: dismiss any blocking modal (login/paywall popup) ──
-    async function dismissModal() {
-      try {
-        // Try pressing Escape first (closes most Ant Design modals)
-        await page.keyboard.press('Escape');
-        await sleep(600);
-        // Also try clicking any visible modal close button
-        const closeBtn = page.locator('.ant-modal-close, .ant-modal-wrap button.ant-btn-default').first();
-        if (await closeBtn.isVisible().catch(() => false)) {
-          await closeBtn.click();
-          await sleep(600);
-        }
-      } catch { /* ignore */ }
-    }
+    onProgress(`Pages available: 1 to ${totalPages}. Starting from page ${safeStartPage}.`);
+    let pageNum = await advanceToPage(page, safeStartPage, onProgress);
 
     // ── Paginate & Scrape ──
-    let pageNum = 1;
-    const maxPages = 10; // Safety cap — adjust as needed
-
-    while (pageNum <= maxPages) {
+    while (pageNum <= totalPages && leads.length < safeTargetLeadCount) {
       onProgress(`Scraping page ${pageNum}...`);
 
       // Wait for at least one card
@@ -276,23 +358,19 @@ async function scrapeLeads({ category, country, city }, onProgress = () => {}) {
       leads.push(...operational);
       onProgress(`Page ${pageNum}: ${pageLeads.length} scraped, ${operational.length} Operational kept (${leads.length} total)`);
 
-      // ── Check for next page ──
-      const nextBtn = page.locator('.ant-pagination-next:not(.ant-pagination-disabled) button');
-      const canGoNext = await nextBtn.isVisible().catch(() => false);
+      if (leads.length >= safeTargetLeadCount) {
+        onProgress(`Lead target reached (${leads.length}/${safeTargetLeadCount}).`);
+        break;
+      }
 
-      if (canGoNext && pageNum < maxPages) {
+      if (pageNum < totalPages) {
         onProgress(`Navigating to page ${pageNum + 1}...`);
-        // Dismiss any modal that may be blocking the click
-        await dismissModal();
-        try {
-          await nextBtn.click({ timeout: 8000 });
-        } catch {
-          // Modal still blocking — Targetron paywall reached, stop gracefully
+        const moved = await goToNextResultsPage(page);
+        if (!moved) {
           onProgress('⚠️ Pagination blocked (login wall). Returning leads collected so far.');
           break;
         }
         pageNum++;
-        await sleep(3000); // polite delay between pages
       } else {
         break;
       }
@@ -309,4 +387,4 @@ async function scrapeLeads({ category, country, city }, onProgress = () => {}) {
   }
 }
 
-module.exports = { scrapeLeads };
+module.exports = { scrapeLeads, discoverLeadPages };

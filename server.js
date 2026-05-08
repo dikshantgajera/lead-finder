@@ -2,9 +2,10 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
-const { scrapeLeads }            = require('./agent/scraper');
+const { spawn } = require('child_process');
+const { scrapeLeads, discoverLeadPages } = require('./agent/scraper');
 const { enrichLeadsWithProgress, stopEnrichment } = require('./agent/enricher');
-const { generateSalesPitch }     = require('./agent/ai_generator');
+const { run: checkFacebookPageAds } = require('./scripts/check-fb-page-ads');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -14,8 +15,10 @@ const DATA_DIR     = path.join(__dirname, 'data');
 const LEADS_DIR    = path.join(DATA_DIR, 'leads');
 const CRM_DIR      = path.join(DATA_DIR, 'crm');
 const EMAILS_DIR   = path.join(DATA_DIR, 'emails');
+const FINAL_LIST_DIR  = path.join(DATA_DIR, 'final-list');
+const LEGACY_FINAL_LIST_FILE = path.join(DATA_DIR, 'final-list.json');
 
-[DATA_DIR, LEADS_DIR, CRM_DIR, EMAILS_DIR].forEach(dir => {
+[DATA_DIR, LEADS_DIR, CRM_DIR, EMAILS_DIR, FINAL_LIST_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -26,10 +29,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── Frontend ──────────────────────────────────────────────────
 app.get('/', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/final-list', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Scrape (SSE) ──────────────────────────────────────────────
-app.get('/api/search', async (req, res) => {
+app.get('/api/search/pages', async (req, res) => {
   const { category = '', country = '', city = '' } = req.query;
+
+  try {
+    const pages = await discoverLeadPages({ category, country, city });
+    res.json(pages);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not discover available pages' });
+  }
+});
+
+app.get('/api/search', async (req, res) => {
+  const { category = '', country = '', city = '', startPage = '1' } = req.query;
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -41,7 +57,7 @@ app.get('/api/search', async (req, res) => {
 
   try {
     send('status', { message: 'Agent started...' });
-    const leads = await scrapeLeads({ category, country, city },
+    const leads = await scrapeLeads({ category, country, city, startPage, targetLeadCount: 100 },
       msg => send('progress', { message: msg }));
     send('done', { leads });
   } catch (err) {
@@ -80,6 +96,35 @@ function readDirMeta(dir) {
                modifiedAt: stat.mtime.toISOString() };
     })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function finalListNameForSource(sourceFile) {
+  const base = safeName(path.basename(sourceFile || '', '.json')) || `final-list-${new Date().toISOString().slice(0, 10)}`;
+  return base.startsWith('leads-')
+    ? `final-list-${base.slice('leads-'.length)}.json`
+    : `${base}-final-list.json`;
+}
+
+function finalListFilePath(name) {
+  const safe = path.basename(name || '');
+  if (!safe || safe !== name || !safe.endsWith('.json')) return null;
+  if (safe === 'final-list.json') return LEGACY_FINAL_LIST_FILE;
+  return path.join(FINAL_LIST_DIR, safe);
+}
+
+function readFinalListArray(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function readAllFinalLists() {
+  const items = [];
+  if (fs.existsSync(LEGACY_FINAL_LIST_FILE)) items.push(...readFinalListArray(LEGACY_FINAL_LIST_FILE));
+  for (const file of fs.readdirSync(FINAL_LIST_DIR).filter(f => f.endsWith('.json'))) {
+    items.push(...readFinalListArray(path.join(FINAL_LIST_DIR, file)));
+  }
+  return items;
 }
 
 app.get('/api/leads/files', (req, res) => {
@@ -156,6 +201,36 @@ app.patch('/api/crm/file/:name', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/crm/find-ads', async (req, res) => {
+  const { sourceFile, country = 'ALL', selectedIndexes, dryRun = false } = req.body || {};
+  try {
+    const outputFile = path.join(
+      FINAL_LIST_DIR,
+      `fb-ad-status-${safeName(path.basename(sourceFile || 'crm', '.json'))}-${String(country || 'ALL').toLowerCase()}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+    );
+    const result = await checkFacebookPageAds({
+      sourceFile,
+      country: country || 'ALL',
+      selectedIndexes,
+      outputFile,
+      dryRun,
+    });
+    res.json({
+      ...result,
+      finalList: result.results,
+      finalListPath: result.outputPath,
+      notRunningAds: result.notRunningAds,
+    });
+  } catch (e) {
+    const status = /not found/i.test(e.message) ? 404 : 400;
+    res.status(status).json({
+      success: false,
+      error: e.message,
+      progressMessages: Array.isArray(e.progressMessages) ? e.progressMessages : [],
+    });
+  }
+});
+
 // ── Enrichment (SSE stream) ───────────────────────────────────
 app.post('/api/enrich/stream', async (req, res) => {
   const { filename, selectedIndexes } = req.body;
@@ -210,111 +285,192 @@ app.post('/api/enrich/stop', (req, res) => {
   res.json({ stopped: true });
 });
 
-// ── AI Generation ─────────────────────────────────────────────
-app.post('/api/ai/generate', async (req, res) => {
-  const { lead, valueProposition, baseUrl, model } = req.body;
-  
-  if (!lead) return res.status(400).json({ error: 'Missing lead data' });
-
-  try {
-    const email = await generateSalesPitch(lead, { valueProposition, baseUrl, model });
-    res.json({ success: true, email });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/ai/generate-batch/stream', async (req, res) => {
-  const { leads, sourceFile, valueProposition, baseUrl, model } = req.body;
-
-  if (!Array.isArray(leads) || leads.length === 0) {
-    return res.status(400).json({ error: 'Missing leads array' });
-  }
+// ── Facebook Page ID Scraper (SSE stream) ─────────────────────
+// POST /api/crm/fb-page-ids/stream
+// Body: { sourceFile, allCrm, selectedIndexes, limit, headless, sourceFallback, updateCrm }
+// Streams SSE events: status | progress | lead_done | done | error
+app.post('/api/crm/fb-page-ids/stream', async (req, res) => {
+  const {
+    sourceFile,
+    allCrm = false,
+    selectedIndexes,
+    limit,
+    headless = false,
+    sourceFallback = false,
+    updateCrm = true,
+  } = req.body || {};
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const send = (type, data) =>
+  let childDone = false;
+  let clientClosed = false;
+
+  const send = (type, data) => {
+    if (clientClosed || res.writableEnded || res.destroyed) return;
     res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+  };
 
-  const generated = [];
+  // Scraper auto-generates a timestamped filename — capture it from stdout
+  let detectedOutputName = null;
 
-  try {
-    send('status', { message: `Starting AI email generation for ${leads.length} selected lead(s).` });
+  const args = [
+    path.join(__dirname, 'agent', 'fb_page_id_scraper.js'),
+  ];
+  if (allCrm) args.push('--all-crm');
+  else if (sourceFile) args.push('--file', path.basename(sourceFile));
+  if (!allCrm && Array.isArray(selectedIndexes)) {
+    const indexes = [...new Set(selectedIndexes)]
+      .map(index => Number.parseInt(index, 10))
+      .filter(index => Number.isInteger(index) && index >= 0)
+      .sort((a, b) => a - b);
+    if (indexes.length) args.push('--selected-indexes', indexes.join(','));
+  }
+  if (limit && Number.isInteger(Number(limit))) args.push('--limit', String(limit));
+  if (headless) args.push('--headless');
+  if (sourceFallback) args.push('--source-fallback');
+  if (updateCrm) args.push('--update-crm');
 
-    for (let i = 0; i < leads.length; i += 1) {
-      const lead = leads[i] || {};
-      const company = lead.name || `Lead ${i + 1}`;
-      send('progress', {
-        index: i + 1,
-        total: leads.length,
-        company,
-        message: `[${i + 1}/${leads.length}] Generating email for ${company}...`
-      });
+  send('status', { message: 'Starting Facebook Page ID scraper…' });
 
-      try {
-        const email = await generateSalesPitch(lead, { valueProposition, baseUrl, model });
-        const subjectMatch = email.match(/^\s*Subject:\s*(.+)$/im);
-        generated.push({
-          company,
-          website: lead.website_full || lead.website || '',
-          phone: lead.phone_full || lead.phone || '',
-          address: lead.address_full || lead.address || '',
-          status: lead.status || '',
-          source_file: sourceFile || '',
-          source_lead: company,
-          service_pitch: valueProposition || '',
-          model: model || '',
-          generated_email: email,
-          subject: subjectMatch ? subjectMatch[1].trim() : '',
-          lead
+  const child = spawn(process.execPath, args, {
+    cwd: __dirname,
+    env: { ...process.env },
+  });
+
+  let buffer = '';
+  let foundFromEvents = 0;
+  let notFoundFromEvents = 0;
+  let errorsFromEvents = 0;
+  let crmRowsUpdated = 0;
+  let crmFilesUpdated = '';
+
+  function processLine(line) {
+    line = line.trim();
+    if (!line) return;
+
+    // Capture the output filename the scraper chose
+    const outMatch = line.match(/💾 Output\s*:\s*(.+\.json)/);
+    if (outMatch) { detectedOutputName = outMatch[1].trim(); }
+
+    // Parse structured progress from stdout markers
+    if (line.startsWith('→ [')) {
+      const nameMatch = line.match(/→ \[(.+?)\]/);
+      send('progress', { message: line, company: nameMatch ? nameMatch[1] : '' });
+    } else if (line.includes('✅ Page ID')) {
+      const idMatch = line.match(/Page ID[^:]*:\s*(\d+)/);
+      foundFromEvents += 1;
+      send('lead_done', { message: line, page_id: idMatch ? idMatch[1] : '' });
+    } else if (line.includes('⚠') || line.includes('❌')) {
+      if (line.includes('Page ID not found')) notFoundFromEvents += 1;
+      if (line.includes('❌')) errorsFromEvents += 1;
+      send('progress', { message: line });
+    } else if (line.includes('💾 Saved')) {
+      send('progress', { message: line });
+    } else if (line.includes('CRM rows updated')) {
+      const updatedMatch = line.match(/CRM rows updated\s*:\s*(\d+)/);
+      if (updatedMatch) crmRowsUpdated = Number(updatedMatch[1]) || 0;
+      send('status', { message: line });
+    } else if (line.includes('CRM files updated')) {
+      const filesMatch = line.match(/CRM files updated\s*:\s*(.+)$/);
+      if (filesMatch) crmFilesUpdated = filesMatch[1].trim();
+      send('status', { message: line });
+    } else if (line.startsWith('📋') || line.startsWith('📊') || line.startsWith('🔗') || line.startsWith('🎯') || line.startsWith('💾') || line.startsWith('🔎') || line.startsWith('📝') || line.startsWith('☑️')) {
+      send('status', { message: line });
+    } else if (line.includes('Done!') || line.includes('═══')) {
+      // Summary block — handled in close
+    } else {
+      send('progress', { message: line });
+    }
+  }
+
+  child.stdout.on('data', chunk => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) processLine(line);
+  });
+
+  child.stderr.on('data', chunk => {
+    const text = chunk.toString().trim();
+    if (text) send('progress', { message: `[stderr] ${text}` });
+  });
+
+  child.on('error', err => {
+    childDone = true;
+    send('error', { message: `Could not start scraper: ${err.message}` });
+    if (!res.writableEnded && !res.destroyed) res.end();
+  });
+
+  child.on('close', (code, signal) => {
+    childDone = true;
+    if (buffer.trim()) processLine(buffer.trim());
+
+    if (updateCrm) {
+      if (code === 0) {
+        send('done', {
+          filename: sourceFile || 'CRM',
+          count: foundFromEvents + notFoundFromEvents + errorsFromEvents,
+          found: foundFromEvents,
+          notFound: notFoundFromEvents,
+          errors: errorsFromEvents,
+          updated: crmRowsUpdated,
+          crmFilesUpdated,
+          message: `Done — ${foundFromEvents} Page IDs found and ${crmRowsUpdated} CRM row(s) updated.`,
         });
-        send('lead_done', { index: i + 1, total: leads.length, company });
-      } catch (error) {
-        generated.push({
-          company,
-          website: lead.website_full || lead.website || '',
-          phone: lead.phone_full || lead.phone || '',
-          address: lead.address_full || lead.address || '',
-          status: lead.status || '',
-          source_file: sourceFile || '',
-          source_lead: company,
-          service_pitch: valueProposition || '',
-          model: model || '',
-          generated_email: '',
-          error: error.message,
-          lead
-        });
-        send('lead_error', {
-          index: i + 1,
-          total: leads.length,
-          company,
-          message: `${company}: ${error.message}`
-        });
+      } else {
+        const reason = signal ? `signal ${signal}` : `code ${code}`;
+        send('error', { message: `Scraper exited with ${reason}` });
       }
+      if (!res.writableEnded && !res.destroyed) res.end();
+      return;
     }
 
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    const sourceBase = (sourceFile || 'crm-selected').replace(/\.json$/i, '');
-    const filename = uniqueJsonName(EMAILS_DIR, `${sourceBase}-ai-emails-${stamp}`);
-    fs.writeFileSync(path.join(EMAILS_DIR, filename), JSON.stringify(generated, null, 2));
+    // Use detected name, or fall back to newest fb-page-ids-* file in emails dir
+    let outputName = detectedOutputName;
+    if (!outputName) {
+      try {
+        const candidates = fs.readdirSync(EMAILS_DIR)
+          .filter(f => f.startsWith('fb-page-ids-') && f.endsWith('.json'))
+          .map(f => ({ name: f, mtime: fs.statSync(path.join(EMAILS_DIR, f)).mtimeMs }))
+          .sort((a, b) => b.mtime - a.mtime);
+        if (candidates.length) outputName = candidates[0].name;
+      } catch {}
+    }
 
-    send('done', {
-      filename,
-      count: generated.length,
-      successCount: generated.filter(item => item.generated_email).length,
-      errorCount: generated.filter(item => item.error).length
-    });
-  } catch (err) {
-    send('error', { message: err.message });
-  } finally {
-    res.end();
-  }
+    let results = [];
+    if (outputName) {
+      try { results = JSON.parse(fs.readFileSync(path.join(EMAILS_DIR, outputName), 'utf8')); } catch {}
+    }
+
+    const found    = results.filter(r => r.status === 'found').length;
+    const notFound = results.filter(r => r.status === 'not_found').length;
+    const errors   = results.filter(r => r.status === 'error').length;
+    if (code === 0 || results.length > 0) {
+      send('done', {
+        filename: outputName || 'fb-page-ids.json',
+        count: results.length,
+        found,
+        notFound,
+        errors,
+        message: `Done — ${found} Page IDs found, ${notFound} not found, ${errors} errors.`,
+      });
+    } else {
+      const reason = signal ? `signal ${signal}` : `code ${code}`;
+      send('error', { message: `Scraper exited with ${reason}` });
+    }
+    if (!res.writableEnded && !res.destroyed) res.end();
+  });
+
+  res.on('close', () => {
+    clientClosed = true;
+    if (!childDone && !child.killed) child.kill();
+  });
 });
 
-// ── Emails: file management ───────────────────────────────────
+// ── Facebook Page ID reports: file management ─────────────────
 app.get('/api/emails/files', (req, res) => {
   try { res.json(readDirMeta(EMAILS_DIR)); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -332,6 +488,55 @@ app.delete('/api/emails/file/:name', (req, res) => {
   if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Not found' });
   try { fs.unlinkSync(fp); res.json({ success: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Final List: saved "not running ads" companies ─────────────
+app.get('/api/final-list/files', (req, res) => {
+  try {
+    const files = readDirMeta(FINAL_LIST_DIR);
+    if (fs.existsSync(LEGACY_FINAL_LIST_FILE)) {
+      const stat = fs.statSync(LEGACY_FINAL_LIST_FILE);
+      files.push({
+        name: 'final-list.json',
+        leadCount: readFinalListArray(LEGACY_FINAL_LIST_FILE).length,
+        size: stat.size,
+        createdAt: stat.birthtime.toISOString(),
+        modifiedAt: stat.mtime.toISOString(),
+      });
+      files.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    res.json(files);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/final-list/file/:name', (req, res) => {
+  const fp = finalListFilePath(req.params.name);
+  if (!fp || !fs.existsSync(fp)) return res.status(404).json({ error: 'Not found' });
+  try { res.json(readFinalListArray(fp)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/final-list/file/:name', (req, res) => {
+  const fp = finalListFilePath(req.params.name);
+  if (!fp || !fs.existsSync(fp)) return res.status(404).json({ error: 'Not found' });
+  try { fs.unlinkSync(fp); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/final-list', (req, res) => {
+  try {
+    res.json(readAllFinalLists());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/final-list', (req, res) => {
+  try {
+    for (const file of fs.readdirSync(FINAL_LIST_DIR).filter(f => f.endsWith('.json'))) {
+      fs.unlinkSync(path.join(FINAL_LIST_DIR, file));
+    }
+    if (fs.existsSync(LEGACY_FINAL_LIST_FILE)) fs.writeFileSync(LEGACY_FINAL_LIST_FILE, JSON.stringify([], null, 2));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Health ────────────────────────────────────────────────────

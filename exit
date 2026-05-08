@@ -1,0 +1,21 @@
+ .dev.vars.example                          |    7 [32m+[m
+ .github/workflows/enrich.yml               |   28 [32m++[m
+ .github/workflows/fb-page-ids.yml          |   28 [32m++[m
+ .github/workflows/find-ads.yml             |   28 [32m++[m
+ .github/workflows/search.yml               |   28 [32m++[m
+ .gitignore                                 |    1 [32m+[m
+ HOSTED_SETUP.md                            |  491 [32m++++++++++++++++++++++++[m
+ package-lock.json                          | 1543 [32m+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m
+ package.json                               |   15 [32m+[m[31m-[m
+ public/app.js                              | 1412 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++[m[31m--------------[m
+ public/hosted.js                           |  182 [32m+++++++++[m
+ public/index.html                          |  251 [32m+++++++[m[31m------[m
+ public/runtime-config.example.js           |    6 [32m+[m
+ public/runtime-config.js                   |    6 [32m+[m
+ scripts/check-fb-page-ads.js               |  391 [32m+++++++++++++++++++[m
+ scripts/hosted/run-job.js                  |  283 [32m++++++++++++++[m
+ scripts/hosted/supabase.js                 |  188 [32m++++++++++[m
+ supabase/migrations/0001_hosted_schema.sql |   61 [32m+++[m
+ worker/index.mjs                           |  400 [32m++++++++++++++++++++[m
+ wrangler.toml                              |   16 [32m+[m
+ 20 files changed, 4976 insertions(+), 389 deletions(-)

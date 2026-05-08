@@ -13,10 +13,22 @@ async function interruptibleSleep(ms) {
 const SOCIAL_PLATFORMS = [
   { key: 'facebook',  label: 'Facebook',  hosts: ['facebook.com', 'fb.com'] },
   { key: 'instagram', label: 'Instagram', hosts: ['instagram.com'] },
-  { key: 'linkedin',  label: 'LinkedIn',  hosts: ['linkedin.com'] },
-  { key: 'x',         label: 'X',         hosts: ['x.com', 'twitter.com'] },
-  { key: 'youtube',   label: 'YouTube',   hosts: ['youtube.com', 'youtu.be'] },
-  { key: 'tiktok',    label: 'TikTok',    hosts: ['tiktok.com'] },
+];
+
+const SEARCH_DIRECTORY_HOSTS = [
+  'facebook.com', 'fb.com', 'instagram.com', 'linkedin.com', 'x.com', 'twitter.com',
+  'youtube.com', 'youtu.be', 'google.com', 'google.co.in', 'g.page', 'maps.google.com',
+  'justdial.com', 'indiamart.com', 'tradeindia.com', 'sulekha.com', 'exportersindia.com',
+  'yellowpages.com', 'yelp.com', 'bbb.org', 'foursquare.com', 'zaubacorp.com',
+  'zaubee.com', 'asklaila.com', 'housing.com', 'magicpin.in'
+];
+
+const COMMON_INTERNAL_CONTACT_PATHS = [
+  '/contact',
+  '/contact-us',
+  '/contactus',
+  '/about',
+  '/about-us',
 ];
 
 // ── Abort state ───────────────────────────────────────────────
@@ -68,6 +80,25 @@ function isBetterPhone(phone) {
   return String(phone || '').replace(/\D/g, '').length >= 8;
 }
 
+function normalizeStatusText(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (/permanently closed/i.test(text)) return 'Permanently Closed';
+  if (/temporarily closed/i.test(text)) return 'Temporarily Closed';
+  if (/operational/i.test(text)) return 'Operational';
+  if (/^open$/i.test(text)) return 'Open';
+  return text;
+}
+
+function extractBusinessStatus(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (/permanently closed/i.test(text)) return 'Permanently Closed';
+  if (/temporarily closed/i.test(text)) return 'Temporarily Closed';
+  if (/^operational$/i.test(text) || /\bcurrently operational\b/i.test(text)) return 'Operational';
+  return '';
+}
+
 function phoneKey(phone) {
   return String(phone || '').replace(/\D/g, '');
 }
@@ -98,6 +129,92 @@ function shouldAcceptFoundWebsite(leadWebsite, foundWebsite) {
   if (!leadWebsite) return true;
   if (isUsableWebsite(leadWebsite)) return true;
   return websitePrefixMatch(leadWebsite, foundWebsite);
+}
+
+function normalizedHost(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function isSearchDirectoryHost(url) {
+  const host = normalizedHost(url);
+  return !!host && SEARCH_DIRECTORY_HOSTS.some(domain => host === domain || host.endsWith(`.${domain}`));
+}
+
+function tokenizeBusinessText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter(token => token.length >= 2);
+}
+
+function businessNamePattern(name) {
+  const tokens = tokenizeBusinessText(name);
+  return tokens.length ? new RegExp(tokens.map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*'), 'i') : null;
+}
+
+function scoreSearchWebsiteCandidate(lead, candidate) {
+  const url = normalizeUrl(candidate.url);
+  if (!url || platformForUrl(url) || isSearchDirectoryHost(url)) return -Infinity;
+
+  const reliablePrefix = extractPrefix(lead.website || '');
+  if (reliablePrefix.length >= 7 && !shouldAcceptFoundWebsite(lead.website, url)) return -Infinity;
+
+  const host = normalizedHost(url);
+  const hostTokens = tokenizeBusinessText(host.replace(/\.[a-z]{2,}$/i, '').replace(/[-_.]/g, ' '));
+  const titleTokens = tokenizeBusinessText(candidate.title || '');
+  const leadTokens = tokenizeBusinessText(lead.name || '');
+  const title = String(candidate.title || '').toLowerCase();
+  const pattern = businessNamePattern(lead.name || '');
+
+  let score = 0;
+  if (!leadTokens.length) score += 1;
+
+  for (const token of leadTokens) {
+    if (hostTokens.includes(token)) score += 2.2;
+    if (titleTokens.includes(token)) score += 1.1;
+  }
+
+  if (pattern && pattern.test(title)) score += 4;
+  if (pattern && pattern.test(host.replace(/\.[^.]+$/, '').replace(/[-_.]/g, ' '))) score += 3;
+
+  const pathDepth = (() => {
+    try {
+      return new URL(url).pathname.split('/').filter(Boolean).length;
+    } catch {
+      return 0;
+    }
+  })();
+
+  if (pathDepth === 0) score += 1;
+  else if (pathDepth === 1) score += 0.4;
+  else score -= Math.min(pathDepth * 0.4, 1.6);
+
+  if (/contact|about|home|index/i.test(url)) score += 0.3;
+  if (/official|welcome/i.test(title)) score += 0.4;
+
+  return score;
+}
+
+function bestBusinessStatus(...statuses) {
+  for (const status of statuses) {
+    const normalized = normalizeStatusText(status);
+    if (/permanently closed/i.test(normalized)) return 'Permanently Closed';
+  }
+  for (const status of statuses) {
+    const normalized = normalizeStatusText(status);
+    if (/temporarily closed/i.test(normalized)) return 'Temporarily Closed';
+  }
+  for (const status of statuses) {
+    const normalized = normalizeStatusText(status);
+    if (normalized) return normalized;
+  }
+  return '';
 }
 
 function emptySocialProfiles() {
@@ -181,24 +298,61 @@ function flattenSocialProfiles(profile) {
 }
 
 async function socialProfilesFromCurrentPage(page, baseUrl = '') {
-  const hrefs = await page.$$eval('a, [role="link"]', links =>
-    links.flatMap(a => [
-      a.href,
-      a.getAttribute('href'),
-      a.getAttribute('data-url'),
-      a.getAttribute('data-href'),
-      a.getAttribute('data-rw')
-    ].filter(Boolean))
+  const links = await page.$$eval('a, [role="link"]', nodes =>
+    nodes.map(node => ({
+      href: node.href || '',
+      rawHref: node.getAttribute('href') || '',
+      dataUrl: node.getAttribute('data-url') || '',
+      dataHref: node.getAttribute('data-href') || '',
+      dataRw: node.getAttribute('data-rw') || '',
+      ariaLabel: node.getAttribute('aria-label') || '',
+      text: (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim(),
+    }))
   ).catch(() => []);
 
   const profiles = emptySocialProfiles();
-  for (const raw of hrefs) {
-    const url = normalizeUrl(raw, baseUrl);
-    if (!url || !isLikelyProfileUrl(url)) continue;
-    const platform = platformForUrl(url);
-    if (platform && !profiles[platform.key]) profiles[platform.key] = url;
+  for (const link of links) {
+    const candidates = [link.href, link.rawHref, link.dataUrl, link.dataHref, link.dataRw];
+    for (const raw of candidates) {
+      const url = normalizeUrl(raw, baseUrl);
+      if (!url || !isLikelyProfileUrl(url)) continue;
+      const platform = platformForUrl(url);
+      if (!platform || profiles[platform.key]) continue;
+      profiles[platform.key] = url;
+    }
   }
   return profiles;
+}
+
+function extractPhoneCandidates(text) {
+  const matches = String(text || '').match(/\+?\d[\d\s().-]{6,}\d/g) || [];
+  return uniquePhoneNumbers(matches.map(match => match.replace(/\s+/g, ' ').trim()));
+}
+
+async function phoneNumbersFromCurrentPage(page) {
+  const values = await page.evaluate(() => {
+    const telLinks = Array.from(document.querySelectorAll('a[href^="tel:"]'))
+      .map(link => link.getAttribute('href') || '')
+      .map(value => value.replace(/^tel:/i, '').trim());
+    const areas = ['header', 'footer', 'main', 'body']
+      .map(selector => document.querySelector(selector))
+      .filter(Boolean)
+      .map(node => node.innerText || node.textContent || '');
+    return [...telLinks, ...areas];
+  }).catch(() => []);
+
+  return uniquePhoneNumbers(values.flatMap(extractPhoneCandidates));
+}
+
+async function scrollWebsiteForContactInfo(page) {
+  await page.evaluate(async () => {
+    const wait = (ms) => new Promise(resolve => window.setTimeout(resolve, ms));
+    window.scrollTo(0, 0);
+    await wait(250);
+    window.scrollTo(0, document.body.scrollHeight);
+    await wait(350);
+    window.scrollTo(0, 0);
+  }).catch(() => {});
 }
 
 async function visibleTextAfterLabel(page, label) {
@@ -259,7 +413,14 @@ async function textFromSelectors(page, selectors, label = '') {
 }
 
 async function fromGoogleSearchProfile(page, lead, onProgress) {
-  const result = { website: '', address: '', phone: '', source: 'google_search_profile', social_profiles: emptySocialProfiles() };
+  const result = {
+    website: '',
+    address: '',
+    phone: '',
+    status: '',
+    source: 'google_search_profile',
+    social_profiles: emptySocialProfiles()
+  };
   try {
     if (isStopped()) return result;
     const query = `${lead.name || ''} ${cityFromLead(lead)}`.trim();
@@ -284,12 +445,14 @@ async function fromGoogleSearchProfile(page, lead, onProgress) {
 
     result.address = await visibleTextAfterLabel(page, 'Address');
     result.phone = await visibleTextAfterLabel(page, 'Phone');
+    result.status = extractBusinessStatus(await page.evaluate(() => document.body.innerText || '').catch(() => ''));
     result.social_profiles = await socialProfilesFromCurrentPage(page);
 
     const socialCount = flattenSocialProfiles(result.social_profiles).length;
     if (result.website) onProgress(`    ✅ Website (Google panel): ${result.website}`);
     if (result.address) onProgress(`    ✅ Address (Google panel): ${result.address}`);
     if (result.phone) onProgress(`    📞 Phone (Google panel): ${result.phone}`);
+    if (result.status) onProgress(`    ✅ Status (Google panel): ${result.status}`);
     if (socialCount) onProgress(`    ✅ Social profiles (Google panel): ${socialCount} found`);
   } catch (err) {
     onProgress(`    ❌ Google panel error: ${err.message}`);
@@ -297,28 +460,55 @@ async function fromGoogleSearchProfile(page, lead, onProgress) {
   return result;
 }
 
-async function socialProfilesFromWebsite(page, website, onProgress) {
-  const profiles = emptySocialProfiles();
-  if (isStopped()) return profiles;
+async function websiteDetailsFromWebsite(page, website, onProgress) {
+  const result = {
+    social_profiles: emptySocialProfiles(),
+    phone_numbers: [],
+    phone: '',
+  };
+  if (isStopped()) return result;
   const url = normalizeUrl(website);
-  if (!url) return profiles;
+  if (!url) return result;
   if (isLikelyProfileUrl(url)) {
     const platform = platformForUrl(url);
-    if (platform) profiles[platform.key] = url;
+    if (platform) result.social_profiles[platform.key] = url;
   }
 
   try {
-    if (isStopped()) return profiles;
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    if (!(await interruptibleSleep(1500))) return profiles;
-    const found = await socialProfilesFromCurrentPage(page, url);
-    const merged = mergeSocialProfiles(profiles, found);
-    const count = flattenSocialProfiles(merged).length;
-    if (count) onProgress(`    ✅ Social profiles (website): ${count} found`);
-    return merged;
+    if (isStopped()) return result;
+    const candidates = [url];
+    for (const path of COMMON_INTERNAL_CONTACT_PATHS) {
+      try {
+        const candidate = new URL(path, url).toString();
+        if (!candidates.includes(candidate)) candidates.push(candidate);
+      } catch {}
+    }
+
+    for (let i = 0; i < candidates.length; i += 1) {
+      const candidateUrl = candidates[i];
+      if (isStopped()) return result;
+      await page.goto(candidateUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      if (!(await interruptibleSleep(1200))) return result;
+      await scrollWebsiteForContactInfo(page);
+
+      const socials = await socialProfilesFromCurrentPage(page, candidateUrl);
+      result.social_profiles = mergeSocialProfiles(result.social_profiles, socials);
+
+      const phones = await phoneNumbersFromCurrentPage(page);
+      result.phone_numbers = uniquePhoneNumbers(result.phone_numbers, phones);
+      if (!result.phone && phones.length) result.phone = phones[0];
+
+      const socialCount = flattenSocialProfiles(result.social_profiles).length;
+      if (socialCount) onProgress(`    ✅ Social profiles (website): ${socialCount} found`);
+      if (result.phone_numbers.length) onProgress(`    📞 Phone(s) (website): ${result.phone_numbers.length} found`);
+
+      if (socialCount && result.phone_numbers.length) break;
+    }
+
+    return result;
   } catch (err) {
-    onProgress(`    ⚠️  Social profile scan skipped: ${err.message}`);
-    return profiles;
+    onProgress(`    ⚠️  Website contact scan skipped: ${err.message}`);
+    return result;
   }
 }
 
@@ -326,10 +516,6 @@ function socialFields(profile) {
   return {
     facebook_url:  profile.facebook  || '',
     instagram_url: profile.instagram || '',
-    linkedin_url:  profile.linkedin  || '',
-    x_url:         profile.x         || '',
-    youtube_url:   profile.youtube   || '',
-    tiktok_url:    profile.tiktok    || '',
     social_links:  flattenSocialProfiles(profile),
   };
 }
@@ -342,7 +528,14 @@ async function isGoogleBlockedPage(page) {
 
 // ── Google Maps extractor (PRIMARY) ──────────────────────────
 async function fromGoogleMaps(page, lead, onProgress) {
-  const result = { website:'', address:'', phone:'', source:'google_maps', social_profiles: emptySocialProfiles() };
+  const result = {
+    website:'',
+    address:'',
+    phone:'',
+    status:'',
+    source:'google_maps',
+    social_profiles: emptySocialProfiles()
+  };
   try {
     if (isStopped()) return result;
     const city  = cityFromLead(lead);
@@ -400,11 +593,13 @@ async function fromGoogleMaps(page, lead, onProgress) {
       'a[href^="tel:"]',
     ], 'Phone');
     if (result.phone.startsWith('tel:')) result.phone = result.phone.slice(4);
+    result.status = extractBusinessStatus(await page.evaluate(() => document.body.innerText || '').catch(() => ''));
 
     if (result.website) onProgress(`    ✅ Website (Maps): ${result.website}`);
     else                onProgress(`    ⚠️  No website in Maps profile`);
     if (result.address) onProgress(`    ✅ Address (Maps): ${result.address}`);
     if (result.phone)   onProgress(`    📞 Phone (Maps): ${result.phone}`);
+    if (result.status)  onProgress(`    ✅ Status (Maps): ${result.status}`);
 
     result.social_profiles = await socialProfilesFromCurrentPage(page);
     const socialCount = flattenSocialProfiles(result.social_profiles).length;
@@ -444,28 +639,38 @@ async function websiteFromGoogleSearch(page, lead, onProgress) {
             onProgress(`    ✅ Website (Search KP): ${normalized}`);
             return normalized;
           } else {
-            onProgress(`    ⛔ Website prefix mismatch — skipping`);
-            return '';
+            onProgress(`    ⚠️  Search KP website rejected by prefix check — checking organic results`);
           }
         }
       }
     }
 
-    // Try organic results with prefix check
-    const SKIP = ['google.com','facebook.com','yelp.com','instagram.com',
-                  'twitter.com','linkedin.com','yellowpages.com','bbb.org'];
-    const links = page.locator('#search .g a[href^="http"]');
-    const count = await links.count().catch(()=>0);
-    for (let i = 0; i < Math.min(count, 5); i++) {
-      const href = await links.nth(i).getAttribute('href').catch(()=>'');
-      const normalized = normalizeUrl(href);
-      if (!normalized || SKIP.some(s=>normalized.includes(s))) continue;
-      if (shouldAcceptFoundWebsite(lead.website, normalized)) {
-        onProgress(`    ✅ Website (organic): ${normalized}`);
-        return normalized;
-      }
+    // Score organic results when the business panel does not expose a website.
+    const candidates = await page.$$eval('#search .g, #search .MjjYud', nodes =>
+      nodes.map(node => {
+        const link = node.querySelector('a[href]');
+        const title = node.querySelector('h3');
+        return {
+          url: link ? (link.href || link.getAttribute('href') || '') : '',
+          title: title ? (title.innerText || title.textContent || '') : '',
+        };
+      }).filter(item => item.url)
+    ).catch(() => []);
+
+    let best = null;
+    for (const candidate of candidates.slice(0, 8)) {
+      const normalized = normalizeUrl(candidate.url);
+      if (!normalized) continue;
+      const score = scoreSearchWebsiteCandidate(lead, { ...candidate, url: normalized });
+      if (!Number.isFinite(score)) continue;
+      if (!best || score > best.score) best = { ...candidate, url: normalized, score };
     }
-    onProgress(`    ⛔ No website found via Google Search (prefix required)`);
+
+    if (best && best.score >= 3) {
+      onProgress(`    ✅ Website (organic): ${best.url}`);
+      return best.url;
+    }
+    onProgress(`    ⛔ No reliable website found via Google Search`);
   } catch (err) {
     onProgress(`    ❌ Search error: ${err.message}`);
   }
@@ -479,6 +684,7 @@ async function enrichOne(page, lead, onProgress) {
     website_full:  isUsableWebsite(lead.website) ? lead.website : '',
     address_full:  lead.address || '',
     phone_full:    lead.phone   || '',
+    status:        normalizeStatusText(lead.status || '') || lead.status || '',
     phone_original: lead.phone || '',
     phone_google_maps: '',
     phone_google_profile: '',
@@ -488,10 +694,6 @@ async function enrichOne(page, lead, onProgress) {
     social_profiles: emptySocialProfiles(),
     facebook_url:  '',
     instagram_url: '',
-    linkedin_url:  '',
-    x_url:         '',
-    youtube_url:   '',
-    tiktok_url:    '',
     social_links:  [],
     enriched:      true,
   };
@@ -511,16 +713,18 @@ async function enrichOne(page, lead, onProgress) {
     out.phone_full = maps.phone;
     out.phone_google_maps = maps.phone;
   }
+  if (maps.status) out.status = bestBusinessStatus(maps.status, out.status);
 
   // Step 2 — Google Search business panel fills missing old fields and social profiles.
   const needsGooglePanel =
     !out.website_full ||
     !maps.address ||
     !isBetterPhone(out.phone_full) ||
-    flattenSocialProfiles(maps.social_profiles).length === 0;
+    flattenSocialProfiles(maps.social_profiles).length === 0 ||
+    !maps.status;
   const googlePanel = needsGooglePanel
     ? await fromGoogleSearchProfile(page, lead, onProgress)
-    : { website: '', address: '', phone: '', social_profiles: emptySocialProfiles() };
+    : { website: '', address: '', phone: '', status: '', social_profiles: emptySocialProfiles() };
   if (isStopped()) return out;
 
   if (!out.website_full && googlePanel.website) {
@@ -533,9 +737,10 @@ async function enrichOne(page, lead, onProgress) {
     out.phone_google_profile = googlePanel.phone;
     if (!isBetterPhone(out.phone_full)) out.phone_full = googlePanel.phone;
   }
+  if (googlePanel.status) out.status = bestBusinessStatus(googlePanel.status, out.status);
 
   // Step 3 — legacy organic fallback if the business panel did not expose a website.
-  if (!out.website_full && lead.website) {
+  if (!out.website_full) {
     const found = await websiteFromGoogleSearch(page, lead, onProgress);
     if (isStopped()) return out;
     if (found) {
@@ -548,18 +753,24 @@ async function enrichOne(page, lead, onProgress) {
     }
   }
 
-  const websiteSocial = out.website_full && !out.website_full.includes('*')
-    ? await socialProfilesFromWebsite(page, out.website_full, onProgress)
-    : emptySocialProfiles();
+  const websiteDetails = out.website_full && !out.website_full.includes('*')
+    ? await websiteDetailsFromWebsite(page, out.website_full, onProgress)
+    : { social_profiles: emptySocialProfiles(), phone_numbers: [], phone: '' };
   if (isStopped()) return out;
+  if (!isBetterPhone(out.phone_full) && websiteDetails.phone) out.phone_full = websiteDetails.phone;
   out.phone_numbers = uniquePhoneNumbers(
     out.phone_google_maps,
     out.phone_google_profile,
     out.phone_full,
     out.phone_original,
+    websiteDetails.phone_numbers,
     lead.phone_numbers || []
   );
-  out.social_profiles = mergeSocialProfiles(maps.social_profiles, googlePanel.social_profiles, websiteSocial);
+  out.social_profiles = mergeSocialProfiles(
+    maps.social_profiles,
+    googlePanel.social_profiles,
+    websiteDetails.social_profiles
+  );
   Object.assign(out, socialFields(out.social_profiles));
 
   return out;
@@ -636,4 +847,12 @@ async function enrichLeadsWithProgress(leads, onProgress, onLeadDone) {
   return results;
 }
 
-module.exports = { enrichLeadsWithProgress, stopEnrichment };
+module.exports = {
+  enrichLeadsWithProgress,
+  stopEnrichment,
+  __test: {
+    extractBusinessStatus,
+    scoreSearchWebsiteCandidate,
+    bestBusinessStatus,
+  },
+};
