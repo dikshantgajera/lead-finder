@@ -94,6 +94,10 @@ function leadWebsite(lead) {
   return firstValue(lead.website_full, lead.website);
 }
 
+function leadCategory(lead) {
+  return firstValue(lead.business_category, lead.category, lead.type);
+}
+
 function adsFoundCount(ads) {
   return Number(ads?.ads_found_count ?? ads?.activeAdsCount ?? ads?.active_ads_count ?? 0) || 0;
 }
@@ -103,6 +107,7 @@ function toFinalCompany(lead, adsStatus, ads = {}) {
   return {
     name: leadName(lead),
     phone: leadPhone(lead),
+    category: leadCategory(lead),
     full_address: leadAddress(lead),
     website: leadWebsite(lead),
     facebook_url: socials.facebook_url,

@@ -176,11 +176,19 @@ function socialCell(lead) {
     `<a href="${escAttr(url)}" class="social-link">${esc(socialLabel(url))}</a>`
   ).join('')}</div>`;
 }
+function getLeadCategory(lead) {
+  return lead?.business_category || lead?.category || lead?.type || '';
+}
+function categoryCell(lead) {
+  const category = getLeadCategory(lead);
+  return category ? `<span class="category-pill">${esc(category)}</span>` : '<span class="col-empty">—</span>';
+}
 function leadsToCSV(leads) {
-  const H = ['Name','Address','Website','Primary Phone','All Phones','Original Phone','Google Maps Phone','Google Profile Phone','Status','Facebook Page ID','Facebook','Instagram','LinkedIn','X/Twitter','YouTube','TikTok','Social Links'];
+  const H = ['Name','Business Category','Address','Website','Primary Phone','All Phones','Original Phone','Google Maps Phone','Google Profile Phone','Status','Facebook Page ID','Facebook','Instagram','LinkedIn','X/Twitter','YouTube','TikTok','Social Links'];
   const rows = leads.map(l =>
     [
       l.name,
+      getLeadCategory(l),
       l.address_full||l.address,
       l.website_full||l.website,
       l.phone_full||l.phone,
@@ -712,6 +720,7 @@ function renderResultsTable(leads) {
     <tr class="row-enter" style="animation-delay:${i*14}ms">
       <td class="col-num">${i+1}</td>
       <td class="col-name">${esc(l.name)}</td>
+      <td class="col-category">${categoryCell(l)}</td>
       <td class="col-address">${esc(l.address||'—')}</td>
       <td class="col-website">${websiteCell(l.website)}</td>
       <td class="col-phone">${esc(l.phone||'—')}</td>
@@ -861,6 +870,7 @@ function renderLeadsDetailTable(leads) {
   const filtered = q
     ? leads.filter(l =>
         (l.name||'').toLowerCase().includes(q) ||
+        getLeadCategory(l).toLowerCase().includes(q) ||
         (l.address||'').toLowerCase().includes(q) ||
         (l.status||'').toLowerCase().includes(q) ||
         (l.website||'').toLowerCase().includes(q) ||
@@ -879,6 +889,7 @@ function renderLeadsDetailTable(leads) {
       <td class="col-check"><input type="checkbox" class="row-check" ${checked} onchange="toggleRowSelect(${origIdx},this)"></td>
       <td class="col-num">${fi+1}</td>
       <td class="col-name">${esc(l.name)}</td>
+      <td class="col-category">${categoryCell(l)}</td>
       <td class="col-address">${esc(l.address||'—')}</td>
       <td class="col-website">${websiteCell(l.website)}</td>
       <td class="col-phone">${esc(l.phone||'—')}</td>
@@ -1241,7 +1252,7 @@ function getCrmFilteredEntries() {
   const q = (document.getElementById('crmFilterInput').value || '').toLowerCase();
   return currentCrmData.map((lead, origIdx) => ({ lead, origIdx })).filter(entry => {
     const l = entry.lead;
-    const text = [l.name, l.address_full, l.address, l.status, l.website, l.facebook_page_id, l.phone, ...getLeadPhoneNumbers(l), ...getLeadSocialLinks(l)].join(' ').toLowerCase();
+    const text = [l.name, getLeadCategory(l), l.address_full, l.address, l.status, l.website, l.facebook_page_id, l.phone, ...getLeadPhoneNumbers(l), ...getLeadSocialLinks(l)].join(' ').toLowerCase();
     const matchText = !q || text.includes(q);
     const status = (l.status || '').toLowerCase();
     let matchStatus = true;
@@ -1321,6 +1332,7 @@ function renderCrmDetailTable() {
       <td class="col-check"><input type="checkbox" ${checked} onchange="toggleCrmRow(${entry.origIdx})"></td>
       <td class="col-num">${i+1}</td>
       <td class="col-name">${esc(l.name)}</td>
+      <td class="col-category">${categoryCell(l)}</td>
       <td class="col-address">${esc(l.address_full||l.address||'—')}</td>
       <td class="col-website">${websiteCell(l.website_full||l.website)}</td>
       <td class="col-social">${socialCell(l)}</td>
@@ -1799,7 +1811,7 @@ function renderFinalListTable(items) {
   if (meta) meta.textContent = `${items.length} compan${items.length === 1 ? 'y' : 'ies'}`;
   const body = document.getElementById('finalListBody');
   if (!items.length) {
-    body.innerHTML = '<tr class="crm-empty-row"><td colspan="12">No companies saved yet. Open a CRM file and run Find Ads.</td></tr>';
+    body.innerHTML = '<tr class="crm-empty-row"><td colspan="13">No companies saved yet. Open a CRM file and run Find Ads.</td></tr>';
     setupTableScrollbars();
     return;
   }
@@ -1810,6 +1822,7 @@ function renderFinalListTable(items) {
       <tr class="row-enter" style="animation-delay:${i*12}ms">
         <td class="col-num">${i+1}</td>
         <td class="col-name">${esc(company.name || '—')}</td>
+        <td class="col-category">${categoryCell(company)}</td>
         <td class="col-phone">${esc(company.phone || '—')}</td>
         <td class="col-address">${esc(company.full_address || '—')}</td>
         <td class="col-website">${websiteCell(company.website)}</td>
@@ -1826,14 +1839,14 @@ function renderFinalListTable(items) {
 }
 
 function finalListToCSV(items) {
-  const H = ['Company','Phone','Full Address','Website','Facebook','Instagram','Ads Status','Competitor 1','Competitor 1 Phone','Competitor 1 Address','Competitor 1 Website','Competitor 1 Facebook','Competitor 1 Instagram','Competitor 1 Ads Status','Competitor 2','Competitor 2 Phone','Competitor 2 Address','Competitor 2 Website','Competitor 2 Facebook','Competitor 2 Instagram','Competitor 2 Ads Status','Checked At','Reason','Warnings'];
+  const H = ['Company','Business Category','Phone','Full Address','Website','Facebook','Instagram','Ads Status','Competitor 1','Competitor 1 Phone','Competitor 1 Address','Competitor 1 Website','Competitor 1 Facebook','Competitor 1 Instagram','Competitor 1 Ads Status','Competitor 2','Competitor 2 Phone','Competitor 2 Address','Competitor 2 Website','Competitor 2 Facebook','Competitor 2 Instagram','Competitor 2 Ads Status','Checked At','Reason','Warnings'];
   const rows = items.map(item => {
     const company = item.company || {};
     const runningCompetitors = uniqueRunningCompetitors(item.competitors);
     const c1 = runningCompetitors[0] || {};
     const c2 = runningCompetitors[1] || {};
     return [
-      company.name, company.phone, company.full_address, company.website, company.facebook_url, company.instagram_url, company.ads_status,
+      company.name, company.category, company.phone, company.full_address, company.website, company.facebook_url, company.instagram_url, company.ads_status,
       c1.name, c1.phone, c1.full_address, c1.website, c1.facebook_url, c1.instagram_url, c1.ads_status,
       c2.name, c2.phone, c2.full_address, c2.website, c2.facebook_url, c2.instagram_url, c2.ads_status,
       item.checked_at, item.reason, (item.warnings || []).join(' | ')

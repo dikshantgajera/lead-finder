@@ -354,7 +354,11 @@ async function scrapeLeads({ category, country, city, startPage = 1, targetLeadC
       // ── Filter: keep only "Operational" profiles ──
       const operational = pageLeads.filter(l =>
         (l.status || '').toLowerCase().includes('operational')
-      );
+      ).map(lead => ({
+        ...lead,
+        category: category || lead.category || '',
+        search_category: category || lead.search_category || '',
+      }));
       leads.push(...operational);
       onProgress(`Page ${pageNum}: ${pageLeads.length} scraped, ${operational.length} Operational kept (${leads.length} total)`);
 
