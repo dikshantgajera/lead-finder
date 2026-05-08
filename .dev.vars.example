@@ -1,0 +1,7 @@
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+GITHUB_TOKEN=your-github-personal-access-token
+GITHUB_OWNER=your-github-username-or-org
+GITHUB_REPO=your-repository-name
+GITHUB_REF=main

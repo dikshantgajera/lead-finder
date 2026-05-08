@@ -1,0 +1,28 @@
+name: Hosted Search
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        required: true
+        type: string
+
+concurrency:
+  group: leadfinder-search-${{ github.event.inputs.job_id }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/hosted/run-job.js "${{ github.event.inputs.job_id }}"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

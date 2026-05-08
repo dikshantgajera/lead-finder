@@ -49,9 +49,9 @@
               </button>
             </li>
             <li role="presentation">
-              <button class="nav-tab" role="tab" id="tab-emails" onclick="switchView('emails')">
+              <button class="nav-tab" role="tab" id="tab-final-list" onclick="switchView('final-list')">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                Email List
+                Final List
               </button>
             </li>
           </ul>
@@ -62,6 +62,7 @@
             <div class="orb-dot idle" id="statusDot"></div>
             <span class="status-text" id="statusText">Agent Idle</span>
           </div>
+          <button class="btn-ghost" id="authActionBtn" type="button" onclick="handleAuthAction()">Hosted Sign In</button>
         </div>
       </div>
     </div>
@@ -78,7 +79,7 @@
         <h1 class="hero-headline">Build a local market list without leaving the desk.</h1>
         <p class="hero-sub">Set category, country, and city. LeadFinder scrapes the results and saves them to your library.</p>
         <div class="hero-metrics">
-          <div><strong>847</strong><span>categories</span></div>
+          <div><strong>4,246</strong><span>categories</span></div>
           <div><strong>200+</strong><span>countries</span></div>
           <div><strong>CSV</strong><span>exports</span></div>
         </div>
@@ -98,7 +99,7 @@
                 Category
               </label>
               <div class="input-shell dropdown-wrap" id="categoryWrap">
-                <input type="text" id="category" class="field-input" placeholder="Search 847 categories…"
+                <input type="text" id="category" class="field-input" placeholder="Search 4,246 categories..."
                   autocomplete="off" oninput="filterCategories()" onfocus="openCategoryDropdown()" onkeydown="categoryKeyNav(event)">
                 <button class="chevron-btn" onclick="toggleCategoryDropdown()" tabindex="-1" aria-label="Toggle category dropdown">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -133,6 +134,19 @@
               </label>
               <div class="input-shell">
                 <input type="text" id="city" class="field-input" placeholder="e.g. New York, London…">
+              </div>
+            </div>
+            <!-- Start Page -->
+            <div class="field-block page-start-block" id="pageStartBlock" hidden>
+              <label class="field-tag" for="startPage">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5z"/><path d="M8 7h6M8 11h8M8 15h5"/></svg>
+                Start Page
+              </label>
+              <div>
+                <div class="input-shell">
+                  <input type="number" id="startPage" class="field-input page-input" min="1" value="1" inputmode="numeric">
+                </div>
+                <div class="page-range-note" id="pageRangeNote">Available pages: 1 to 1</div>
               </div>
             </div>
           </div>
@@ -217,10 +231,13 @@
             <h2 class="section-title">Leads Library</h2>
             <p class="section-sub">Each file is one scrape session. Open a file, then enrich it with the Find Leads agent.</p>
           </div>
-          <button class="btn-ghost" onclick="loadLeadsLibrary()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
-            Refresh
-          </button>
+          <div class="detail-actions">
+            <button class="btn-ghost" type="button" onclick="triggerImport('leads')">Import JSON</button>
+            <button class="btn-ghost" onclick="loadLeadsLibrary()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
+              Refresh
+            </button>
+          </div>
         </div>
         <div class="file-grid" id="leadsGrid"></div>
       </section>
@@ -310,10 +327,13 @@
             <h2 class="section-title">CRM Manager</h2>
             <p class="section-sub">Enriched leads with verified websites, full addresses, and phone numbers.</p>
           </div>
-          <button class="btn-ghost" onclick="loadCrmLibrary()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
-            Refresh
-          </button>
+          <div class="detail-actions">
+            <button class="btn-ghost" type="button" onclick="triggerImport('crm')">Import JSON</button>
+            <button class="btn-ghost" onclick="loadCrmLibrary()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
+              Refresh
+            </button>
+          </div>
         </div>
         <div class="file-grid" id="crmGrid"></div>
       </section>
@@ -329,8 +349,10 @@
             <h3 id="crmDetailName"></h3>
             <div class="detail-actions">
               <button class="btn-ghost" onclick="exportCrmFile()">Export CSV</button>
-              <button class="btn-find" id="crmGenerateEmailsBtn" onclick="generateSelectedCrmEmails()" style="display:none">
-                Generate Emails (<span id="crmEmailSelectedCount">0</span>)
+              <button class="btn-find" id="crmFindAdsBtn" onclick="findAdsForCurrentCrm()">Find Ads</button>
+              <button class="btn-find" id="crmFbPageIdsBtn" onclick="getFbPageIdsForCurrentCrm()" title="Visit each Facebook page and extract the Page ID from Page Transparency">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                Get FB Page IDs
               </button>
               <button class="btn-danger" id="crmDeleteSelectedBtn" onclick="deleteSelectedCrm()" style="display:none">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -358,16 +380,28 @@
           <span class="leads-filter-meta" id="crmFilterMeta"></span>
         </div>
 
-        <div class="batch-panel" id="crmEmailProgress" style="display:none">
+        <div class="batch-panel" id="crmFindAdsProgress" style="display:none">
           <div class="batch-head">
             <div>
-              <strong id="crmEmailProgressTitle">Generating emails…</strong>
-              <span id="crmEmailProgressSub">Preparing selected leads.</span>
+              <strong id="crmFindAdsProgressTitle">Finding ads...</strong>
+              <span id="crmFindAdsProgressSub">Checking stored ad status for this CRM file.</span>
             </div>
-            <span class="batch-count" id="crmEmailProgressCount">0 / 0</span>
+            <span class="batch-count" id="crmFindAdsProgressCount">0 saved</span>
           </div>
-          <div class="batch-bar"><span id="crmEmailProgressBar"></span></div>
-          <div class="batch-log" id="crmEmailLog"></div>
+          <div class="batch-bar"><span id="crmFindAdsProgressBar"></span></div>
+          <div class="batch-log" id="crmFindAdsLog"></div>
+        </div>
+
+        <div class="batch-panel" id="crmFbPageIdsProgress" style="display:none">
+          <div class="batch-head">
+            <div>
+              <strong id="crmFbPageIdsTitle">Getting Facebook Page IDs…</strong>
+              <span id="crmFbPageIdsSub">Visiting each Facebook page and reading Page Transparency.</span>
+            </div>
+            <span class="batch-count" id="crmFbPageIdsCount">0 found</span>
+          </div>
+          <div class="batch-bar"><span id="crmFbPageIdsBar"></span></div>
+          <div class="batch-log" id="crmFbPageIdsLog"></div>
         </div>
 
         <div class="table-shell">
@@ -381,11 +415,11 @@
                   <th class="col-address">Full Address</th>
                   <th class="col-website">Website</th>
                   <th class="col-social">Social</th>
+                  <th style="width:150px">FB Page ID</th>
                   <th class="col-phone">Phone</th>
                   <th class="col-status">Status</th>
                   <th style="width:100px">Confidence</th>
                   <th style="width:110px">Source</th>
-                  <th style="width:100px">AI Pitch</th>
                 </tr>
               </thead>
               <tbody id="crmDetailBody"></tbody>
@@ -396,43 +430,47 @@
     </div>
 
     <!-- ══════════════════════════════════════════════
-         VIEW: EMAIL LIST
+         VIEW: FINAL LIST
     ══════════════════════════════════════════════ -->
-    <div id="view-emails" class="app-view" style="display:none">
+    <div id="view-final-list" class="app-view" style="display:none">
 
-      <!-- Library grid -->
-      <section id="emailsLibrary">
+      <section id="finalListLibrary">
         <div class="lib-header">
           <div>
             <div class="section-eyebrow" style="color:var(--cyan)">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              Decision-maker contacts
+              Meta ads opportunities
             </div>
-            <h2 class="section-title">Email List</h2>
-            <p class="section-sub">Saved contact email files. Click any file to view or export.</p>
+            <h2 class="section-title">Final List</h2>
+            <p class="section-sub">Companies not running Meta ads, paired with nearby competitors from the same CRM file.</p>
           </div>
-          <button class="btn-ghost" onclick="loadEmailsLibrary()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
-            Refresh
-          </button>
+          <div class="detail-actions">
+            <button class="btn-ghost" type="button" onclick="triggerImport('final-list')">Import JSON</button>
+            <button class="btn-ghost" onclick="loadFinalList()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
+              Refresh
+            </button>
+          </div>
         </div>
-        <div class="file-grid" id="emailsGrid"></div>
+        <div class="file-grid" id="finalListGrid"></div>
       </section>
 
-      <!-- File detail -->
-      <section id="emailsDetail" style="display:none">
+      <section id="finalListDetail" style="display:none">
         <div class="detail-header">
-          <button class="btn-ghost" onclick="closeEmailsDetail()">
+          <button class="btn-ghost" onclick="closeFinalListDetail()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
-            Back to Email List
+            Back to Final List
           </button>
-          <div class="detail-title-row">
-            <h3 id="emailsDetailName"></h3>
-            <div class="detail-actions">
-              <button class="btn-export" onclick="exportEmailsFile()" style="background:var(--cyan);border-color:var(--cyan);color:#0a1f21">Export CSV</button>
-              <button class="btn-danger" onclick="deleteEmailsFile()">Delete File</button>
-            </div>
+        <div class="detail-title-row" style="margin-bottom:14px">
+          <h3 id="finalListDetailName">Final List</h3>
+          <div class="detail-actions">
+            <button class="btn-export" onclick="exportFinalList()" style="background:var(--cyan);border-color:var(--cyan);color:#0a1f21">Export CSV</button>
+            <button class="btn-danger" onclick="clearFinalList()">Delete File</button>
           </div>
+        </div>
+        </div>
+        <div class="detail-title-row" style="margin-bottom:14px">
+          <h3 id="finalListMeta">0 companies</h3>
         </div>
         <div class="table-shell">
           <div class="table-scroll">
@@ -441,19 +479,66 @@
                 <tr>
                   <th class="col-num">#</th>
                   <th class="col-name">Company</th>
+                  <th class="col-phone">Phone</th>
+                  <th class="col-address">Full Address</th>
                   <th class="col-website">Website</th>
-                  <th class="col-person">Service / Person</th>
-                  <th class="col-jobtitle">Subject / Job Title</th>
-                  <th class="col-email">Generated Email / Email</th>
-                  <th style="width:90px">Status</th>
-                  <th style="width:130px">Source Lead</th>
+                  <th class="col-social">Facebook</th>
+                  <th class="col-social">Instagram</th>
+                  <th style="width:130px">Ads Status</th>
+                  <th class="col-address">Competitor 1</th>
+                  <th class="col-address">Competitor 2</th>
+                  <th style="width:160px">Checked At</th>
+                  <th style="width:180px">Reason</th>
                 </tr>
               </thead>
-              <tbody id="emailsDetailBody"></tbody>
+              <tbody id="finalListBody"></tbody>
             </table>
           </div>
         </div>
       </section>
+
+      <section id="emailsLibrary">
+        <div class="lib-header" style="margin-top:40px;">
+          <div>
+            <div class="section-eyebrow" style="color:var(--magenta)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Facebook
+            </div>
+            <h2 class="section-title">FB Page ID Reports</h2>
+            <p class="section-sub">Scraped Facebook Page IDs from Page Transparency.</p>
+          </div>
+          <div class="detail-actions">
+            <button class="btn-ghost" type="button" onclick="triggerImport('fb-page-id-reports')">Import JSON</button>
+            <button class="btn-ghost" type="button" onclick="loadEmailsList()">Refresh</button>
+          </div>
+        </div>
+        <div class="file-grid" id="emailsGrid"></div>
+      </section>
+
+      <section id="emailsDetail" style="display:none; margin-top:40px;">
+        <div class="detail-header">
+          <button class="btn-ghost" onclick="closeEmailsDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            Back to Library
+          </button>
+        <div class="detail-title-row" style="margin-bottom:14px">
+          <h3 id="emailsDetailName">FB Page ID File</h3>
+          <div class="detail-actions">
+            <button class="btn-export" onclick="exportEmailsFile()" style="background:var(--magenta);border-color:var(--magenta);color:#fff">Export CSV</button>
+            <button class="btn-danger" onclick="clearEmailsFile()">Delete File</button>
+          </div>
+        </div>
+        </div>
+        <div class="detail-title-row" style="margin-bottom:14px">
+          <h3 id="emailsMeta">0 items</h3>
+        </div>
+        <div class="table-shell">
+          <div class="table-scroll" id="emailsTableScroll">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
+
     </div>
 
   </main>
@@ -486,69 +571,6 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════
-       AI PITCH MODAL
-  ══════════════════════════════════════════════ -->
-  <div class="modal-overlay" id="aiModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="aiModalTitle">
-    <div class="modal-shell" style="max-width:600px;">
-      <div class="modal-header">
-        <h3 id="aiModalTitle">AI Sales Pitch Generator</h3>
-        <p>Generating personalized cold email for <strong id="aiLeadName">...</strong></p>
-      </div>
-      <div class="modal-body">
-        <div style="margin-bottom: 12px; text-align: right;">
-          <button class="btn-ghost" style="padding: 4px 8px; font-size: 0.75rem;" onclick="toggleAiSettings()">⚙️ Connection Settings</button>
-        </div>
-        <div id="aiSettingsPanel" style="display:none; padding:12px; border-radius:6px; margin-bottom:16px;">
-          <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0; margin-bottom:12px;">
-            <label class="field-tag">Llama.cpp Network IP / Base URL</label>
-            <div class="input-shell">
-              <input type="text" id="aiBaseUrl" class="field-input" placeholder="e.g., http://192.168.1.100:8080/v1" value="http://192.168.1.146:8080/v1">
-            </div>
-          </div>
-          <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0;">
-            <label class="field-tag">Model Name</label>
-            <div class="input-shell">
-              <input type="text" id="aiModelName" class="field-input" placeholder="e.g., llama3" value="llama3">
-            </div>
-          </div>
-        </div>
-
-        <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0; margin-bottom:16px;">
-          <label class="field-tag">Service to Pitch (Value Proposition)</label>
-          <div class="input-shell dropdown-wrap">
-            <select id="aiServiceSelect" class="field-input" onchange="handleAiServiceChange()" style="appearance:auto; padding-right:14px;">
-              <option value="expert Performance Marketing to turn ad spend into predictable growth and maximize ROI">General Performance Marketing</option>
-              <option value="Google Ads Management to capture high-intent search traffic and scale revenue">Google Ads Management</option>
-              <option value="LinkedIn Ads tailored for high-quality B2B lead generation">LinkedIn Ads for B2B</option>
-              <option value="Meta Ads (Facebook & Instagram) to scale brand presence and drive direct response">Meta Ads (FB/IG)</option>
-              <option value="Advanced Performance Tracking & Attribution to ensure every dollar is tracked">Tracking & Attribution</option>
-              <option value="custom">Custom Service...</option>
-            </select>
-          </div>
-          <div class="input-shell" id="aiCustomPropWrapper" style="display:none; margin-top:8px;">
-            <input type="text" id="aiValueProp" class="field-input" placeholder="Enter your custom value proposition...">
-          </div>
-          <p style="color:var(--muted);font-size:.78rem;margin-top:4px">Select a service from WIF Marketing or write your own to customize the pitch.</p>
-        </div>
-        <div class="field-block" style="grid-template-columns:1fr; gap:8px; border:0; padding:0;">
-          <label class="field-tag">Generated Email</label>
-          <div class="input-shell" style="height:auto;">
-            <textarea id="aiEmailResult" class="field-input" style="height:200px; resize:vertical; padding:12px;" placeholder="Click 'Generate' to create a pitch..."></textarea>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-ghost" onclick="closeAiModal()">Close</button>
-        <button class="btn-ghost" id="aiCopyBtn" onclick="copyAiEmail()" style="display:none;">Copy to Clipboard</button>
-        <button class="btn-find" id="aiGenerateBtn" onclick="generateAiPitch()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-          <span id="aiGenerateBtnText">Generate Pitch</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Toast -->
   <div class="toast-wrap" id="errorToast" style="display:none" role="alert">
     <div class="toast-shell">
@@ -557,6 +579,11 @@
     </div>
   </div>
 
+  <input type="file" id="importJsonInput" accept="application/json" style="display:none" onchange="handleImportFileChange(event)">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="runtime-config.js"></script>
+  <script src="hosted.js"></script>
   <script src="leaddata.js"></script>
   <script src="app.js"></script>
 </body>

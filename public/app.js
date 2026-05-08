@@ -31,6 +31,29 @@ function addLog(logEl, msg) {
   logEl.appendChild(p);
   logEl.scrollTop = logEl.scrollHeight;
 }
+async function readJsonResponse(response, label = 'Request') {
+  const contentType = response.headers.get('content-type') || '';
+  const text = await response.text();
+  const preview = text.slice(0, 300);
+  if (!contentType.toLowerCase().includes('application/json')) {
+    console.error(`${label} returned non-JSON`, {
+      status: response.status,
+      contentType,
+      preview,
+    });
+    throw new Error(`${label} returned ${contentType || 'non-JSON'}: ${preview}`);
+  }
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch (error) {
+    console.error(`${label} returned invalid JSON`, {
+      status: response.status,
+      contentType,
+      preview,
+    });
+    throw new Error(`${label} returned invalid JSON: ${preview}`);
+  }
+}
 function syncStickyUiOffsets() {
   const navEl = document.querySelector('.nav-island');
   const navHeight = navEl ? Math.ceil(navEl.getBoundingClientRect().height) : 0;
@@ -87,7 +110,7 @@ function statusBadge(s) {
 function websiteCell(url) {
   if (!url) return '<span class="col-empty">—</span>';
   const display = url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 35);
-  return `<a href="${escAttr(url)}" target="_blank" rel="noopener" class="website-link">${esc(display)}</a>`;
+  return `<a href="${escAttr(url)}" class="website-link">${esc(display)}</a>`;
 }
 function phoneKey(phone) {
   return String(phone || '').replace(/\D/g, '');
@@ -150,11 +173,11 @@ function socialCell(lead) {
   const links = getLeadSocialLinks(lead);
   if (!links.length) return '<span class="col-empty">—</span>';
   return `<div class="social-links">${links.map(url =>
-    `<a href="${escAttr(url)}" target="_blank" rel="noopener" class="social-link">${esc(socialLabel(url))}</a>`
+    `<a href="${escAttr(url)}" class="social-link">${esc(socialLabel(url))}</a>`
   ).join('')}</div>`;
 }
 function leadsToCSV(leads) {
-  const H = ['Name','Address','Website','Primary Phone','All Phones','Original Phone','Google Maps Phone','Google Profile Phone','Status','Facebook','Instagram','LinkedIn','X/Twitter','YouTube','TikTok','Social Links'];
+  const H = ['Name','Address','Website','Primary Phone','All Phones','Original Phone','Google Maps Phone','Google Profile Phone','Status','Facebook Page ID','Facebook','Instagram','LinkedIn','X/Twitter','YouTube','TikTok','Social Links'];
   const rows = leads.map(l =>
     [
       l.name,
@@ -166,6 +189,7 @@ function leadsToCSV(leads) {
       l.phone_google_maps,
       l.phone_google_profile,
       l.status,
+      l.facebook_page_id,
       l.facebook_url || l.social_profiles?.facebook,
       l.instagram_url || l.social_profiles?.instagram,
       l.linkedin_url || l.social_profiles?.linkedin,
@@ -184,39 +208,262 @@ function downloadCSV(csv, filename) {
   a.click();
 }
 
+const hostedApi = window.LeadFinderHosted || null;
+const hostedFileIndex = {
+  leads: new Map(),
+  crm: new Map(),
+  'final-list': new Map(),
+  'fb-page-id-reports': new Map(),
+};
+const activeHostedJobs = {
+  search: null,
+  enrich: null,
+  'fb-page-ids': null,
+  'find-ads': null,
+};
+let pendingImportKind = null;
+let currentLeadsFileMeta = null;
+let currentCrmFileMeta = null;
+let currentFinalListFileMeta = null;
+let currentEmailsFileMeta = null;
+
+function isHostedMode() {
+  return !!(hostedApi && hostedApi.isHosted());
+}
+
+function mapKind(kind) {
+  return kind === 'emails' ? 'fb-page-id-reports' : kind;
+}
+
+function registerHostedFiles(kind, files) {
+  const key = mapKind(kind);
+  hostedFileIndex[key].clear();
+  (files || []).forEach(file => hostedFileIndex[key].set(file.name, file));
+  return files;
+}
+
+function hostedFileMeta(kind, name) {
+  return hostedFileIndex[mapKind(kind)].get(name) || null;
+}
+
+async function ensureHostedFile(kind, name) {
+  let meta = hostedFileMeta(kind, name);
+  if (meta) return meta;
+  const files = await hostedApi.listFiles(mapKind(kind));
+  registerHostedFiles(kind, files);
+  meta = hostedFileMeta(kind, name);
+  if (!meta) throw new Error(`File not found: ${name}`);
+  return meta;
+}
+
+async function loadHostedFile(kind, name) {
+  const meta = await ensureHostedFile(kind, name);
+  const payload = await hostedApi.readFileById(meta.id);
+  return { meta: payload.file || meta, data: payload.data };
+}
+
+function renderJobLog(logEl, messages) {
+  if (!logEl) return;
+  logEl.innerHTML = '';
+  (Array.isArray(messages) ? messages : []).forEach(message => addLog(logEl, message));
+}
+
+function updateJobProgressBar(barEl, messages, terminal = false) {
+  if (!barEl) return;
+  if (terminal) {
+    barEl.style.width = '100%';
+    return;
+  }
+  const count = Array.isArray(messages) ? messages.length : 0;
+  const width = Math.min(92, 12 + count * 6);
+  barEl.style.width = `${width}%`;
+}
+
+async function updateAuthUi() {
+  const button = document.getElementById('authActionBtn');
+  if (!button) return;
+  if (!isHostedMode()) {
+    button.textContent = 'Local Mode';
+    button.disabled = true;
+    return;
+  }
+
+  try {
+    const session = await hostedApi.getSession();
+    if (session?.user?.email) {
+      button.textContent = `Sign Out (${session.user.email})`;
+      button.disabled = false;
+    } else {
+      button.textContent = 'Hosted Sign In';
+      button.disabled = false;
+    }
+  } catch (error) {
+    button.textContent = 'Hosted Config Error';
+    button.disabled = true;
+    console.error(error);
+  }
+}
+
+async function handleAuthAction() {
+  if (!isHostedMode()) return;
+  try {
+    const session = await hostedApi.getSession();
+    if (session?.user?.email) {
+      await hostedApi.signOut();
+      showToast('Signed out of hosted workspace.');
+    } else {
+      const email = prompt('Enter your email for a magic sign-in link:');
+      if (!email) return;
+      await hostedApi.signInWithEmail(email.trim());
+      showToast('Check your email for the sign-in link.');
+    }
+  } catch (error) {
+    showToast(error.message || 'Authentication failed.');
+  } finally {
+    updateAuthUi();
+  }
+}
+
+function triggerImport(kind) {
+  pendingImportKind = kind;
+  const input = document.getElementById('importJsonInput');
+  if (input) {
+    input.value = '';
+    input.click();
+  }
+}
+
+async function handleImportFileChange(event) {
+  const [file] = event.target.files || [];
+  if (!file || !pendingImportKind) return;
+
+  if (isHostedMode()) {
+    try {
+      const saved = await hostedApi.importFile(pendingImportKind, file);
+      showToast(`Imported ${saved.name}.`);
+      if (pendingImportKind === 'leads') loadLeadsLibrary();
+      else if (pendingImportKind === 'crm') loadCrmLibrary();
+      else if (pendingImportKind === 'final-list') loadFinalList();
+      else if (pendingImportKind === 'fb-page-id-reports') loadEmailsList();
+    } catch (error) {
+      showToast(`Import failed: ${error.message}`);
+    }
+  } else {
+    try {
+      const text = await file.text();
+      sessionLeads = JSON.parse(text);
+      finishSearch(sessionLeads);
+      showToast(`Loaded ${file.name} into the Search view.`);
+    } catch (error) {
+      showToast(`Import failed: ${error.message}`);
+    }
+  }
+
+  pendingImportKind = null;
+}
+
 /* ════════════════════════════════════════════════
    CATEGORY DROPDOWN
 ════════════════════════════════════════════════ */
 let catHighlight = -1, catOpen = false;
+const categoryExpanded = new Set();
+
+function categoryRow(type, payload) {
+  const current = document.getElementById('category').value;
+  const isLeaf = type === 'leaf' || type === 'search';
+  const isActive = isLeaf && payload.value === current;
+  const indent = type === 'group' ? 0 : type === 'sub' ? 1 : 2;
+  const count = payload.count ? ` <span class="category-count">(${payload.count})</span>` : '';
+  const chevron = isLeaf
+    ? '<span class="category-tree-spacer"></span>'
+    : `<span class="category-tree-chevron">${categoryExpanded.has(payload.key) ? '&#9662;' : '&#9656;'}</span>`;
+  const meta = type === 'search'
+    ? `<span class="category-path">${esc(payload.group)} / ${esc(payload.sub)}</span>`
+    : '';
+
+  return `<div class="category-item category-tree-row category-${type}${isActive ? ' active' : ''}"
+    data-type="${type}"
+    data-key="${escAttr(payload.key || '')}"
+    data-value="${escAttr(payload.value || '')}"
+    data-selectable="${isLeaf ? 'true' : 'false'}"
+    style="--category-indent:${indent}">
+      ${chevron}
+      <span class="category-check"></span>
+      <span class="category-tree-text">
+        <span class="category-tree-title">${esc(payload.label || payload.name)}${count}</span>
+        ${meta}
+      </span>
+    </div>`;
+}
 
 function buildCategoryList(filter) {
   const list = document.getElementById('categoryList');
-  const q = (filter||'').trim().toLowerCase();
-  const matches = q ? CATEGORIES.filter(c => c.toLowerCase().includes(q)) : CATEGORIES;
-  if (!matches.length) { list.innerHTML = '<div class="category-no-results">No matching categories</div>'; return; }
-  list.innerHTML = matches.map((cat,i) => {
-    const cur = document.getElementById('category').value;
-    let label = esc(cat);
-    if (q) {
-      const idx = cat.toLowerCase().indexOf(q);
-      if (idx !== -1) label = esc(cat.slice(0,idx)) + `<span class="match-highlight">${esc(cat.slice(idx,idx+q.length))}</span>` + esc(cat.slice(idx+q.length));
+  const q = (filter || '').trim().toLowerCase();
+
+  if (q) {
+    const matches = CATEGORY_OPTIONS.filter(option => option.searchText.includes(q));
+    if (!matches.length) {
+      list.innerHTML = '<div class="category-no-results">No matching categories</div>';
+      catHighlight = -1;
+      return;
     }
-    return `<div class="category-item${cat===cur?' active':''}" data-value="${escAttr(cat)}" onmousedown="selectCategory(event,'${cat.replace(/'/g,"\\'")}'">${label}</div>`;
-  }).join('');
+    list.innerHTML = matches.map(option => categoryRow('search', option)).join('');
+    catHighlight = -1;
+    return;
+  }
+
+  const rows = [];
+  CATEGORY_TREE.forEach(group => {
+    const groupKey = `group:${group.name}`;
+    rows.push(categoryRow('group', { ...group, key: groupKey }));
+    if (!categoryExpanded.has(groupKey)) return;
+
+    group.subs.forEach(sub => {
+      const subKey = `sub:${group.name}:${sub.name}`;
+      rows.push(categoryRow('sub', { ...sub, key: subKey }));
+      if (!categoryExpanded.has(subKey)) return;
+
+      sub.items.forEach(value => {
+        rows.push(categoryRow('leaf', {
+          key: `type:${value}`,
+          value,
+          label: formatCategoryLabel(value)
+        }));
+      });
+    });
+  });
+
+  list.innerHTML = rows.join('');
   catHighlight = -1;
 }
 function openCategoryDropdown() { const w=document.getElementById('categoryWrap'); if(!w.classList.contains('open')){w.classList.add('open');catOpen=true;buildCategoryList(document.getElementById('category').value);} }
-function closeCategoryDropdown() { document.getElementById('categoryWrap').classList.remove('open'); catOpen=false; }
+function closeCategoryDropdown() { document.getElementById('categoryWrap').classList.remove('open'); catOpen=false; catHighlight=-1; }
 function toggleCategoryDropdown() { catOpen ? closeCategoryDropdown() : (document.getElementById('category').focus(), openCategoryDropdown()); }
 function filterCategories() { openCategoryDropdown(); buildCategoryList(document.getElementById('category').value); }
 function selectCategory(e, val) { e.preventDefault(); document.getElementById('category').value=val; closeCategoryDropdown(); }
+function toggleCategoryRow(row) {
+  const key = row.dataset.key;
+  if (!key) return;
+  if (categoryExpanded.has(key)) categoryExpanded.delete(key);
+  else categoryExpanded.add(key);
+  buildCategoryList(document.getElementById('category').value);
+}
+function activateCategoryRow(row) {
+  if (!row) return;
+  if (row.dataset.selectable === 'true') {
+    document.getElementById('category').value = row.dataset.value;
+    closeCategoryDropdown();
+  } else {
+    toggleCategoryRow(row);
+  }
+}
 function categoryKeyNav(e) {
   if (!catOpen) { if (e.key==='ArrowDown'||e.key==='Enter') openCategoryDropdown(); return; }
   const items = document.querySelectorAll('#categoryList .category-item');
   if (!items.length) return;
   if (e.key==='ArrowDown') { e.preventDefault(); catHighlight=Math.min(catHighlight+1,items.length-1); updateCatHL(items); }
   else if (e.key==='ArrowUp') { e.preventDefault(); catHighlight=Math.max(catHighlight-1,0); updateCatHL(items); }
-  else if (e.key==='Enter') { e.preventDefault(); if(catHighlight>=0&&items[catHighlight]) document.getElementById('category').value=items[catHighlight].dataset.value; closeCategoryDropdown(); }
+  else if (e.key==='Enter') { e.preventDefault(); if(catHighlight>=0&&items[catHighlight]) activateCategoryRow(items[catHighlight]); else closeCategoryDropdown(); }
   else if (e.key==='Escape') closeCategoryDropdown();
 }
 function updateCatHL(items) { items.forEach((el,i)=>{ el.classList.toggle('highlighted',i===catHighlight); if(i===catHighlight)el.scrollIntoView({block:'nearest'}); }); }
@@ -256,6 +503,12 @@ function countryKeyNav(e) {
 function updateCtryHL(items) { items.forEach((el,i)=>{ el.classList.toggle('highlighted',i===ctryHighlight); if(i===ctryHighlight)el.scrollIntoView({block:'nearest'}); }); }
 
 document.addEventListener('mousedown', e => {
+  const categoryRowEl = e.target.closest('#categoryList .category-item');
+  if (categoryRowEl) {
+    e.preventDefault();
+    activateCategoryRow(categoryRowEl);
+    return;
+  }
   if (!document.getElementById('categoryWrap').contains(e.target)) closeCategoryDropdown();
   if (!document.getElementById('countryWrap').contains(e.target)) closeCountryDropdown();
 });
@@ -270,7 +523,10 @@ function switchView(view) {
   document.getElementById('view-' + view).style.display = 'block';
   if (view === 'leads')  loadLeadsLibrary();
   if (view === 'crm')    loadCrmLibrary();
-  if (view === 'emails') loadEmailsLibrary();
+  if (view === 'final-list') {
+    loadFinalList();
+    loadEmailsList();
+  }
 }
 
 /* ════════════════════════════════════════════════
@@ -278,13 +534,99 @@ function switchView(view) {
 ════════════════════════════════════════════════ */
 let sessionLeads = [];
 let isSearching  = false;
+let pageDiscovery = null;
+
+function currentSearchCriteria() {
+  return {
+    category: document.getElementById('category').value.trim(),
+    country: document.getElementById('country').value.trim(),
+    city: document.getElementById('city').value.trim()
+  };
+}
+
+function searchCriteriaKey(criteria) {
+  return [criteria.category, criteria.country, criteria.city].join('\u001f');
+}
+
+function resetPageSelection() {
+  pageDiscovery = null;
+  const block = document.getElementById('pageStartBlock');
+  const input = document.getElementById('startPage');
+  if (block) block.hidden = true;
+  if (input) {
+    input.min = '1';
+    input.max = '';
+    input.value = '1';
+  }
+}
+
+async function discoverPages(criteria, criteriaKey) {
+  if (isHostedMode()) {
+    isSearching = false;
+    pageDiscovery = { key: criteriaKey, from: 1, to: 999 };
+    const startInput = document.getElementById('startPage');
+    startInput.min = '1';
+    startInput.removeAttribute('max');
+    startInput.value = '1';
+    document.getElementById('pageRangeNote').textContent = 'Hosted mode does not precompute the last page. Choose the page to start scraping from.';
+    document.getElementById('pageStartBlock').hidden = false;
+    document.getElementById('searchBtnText').textContent = 'Start Scraping';
+    setAgentStatus('idle', 'Hosted search ready');
+    showToast('Hosted mode is ready. Choose a start page and click Start Scraping.');
+    return;
+  }
+
+  isSearching = true;
+  setAgentStatus('running', 'Checking pages…');
+  document.getElementById('searchBtn').disabled = true;
+  document.getElementById('searchBtnText').textContent = 'Checking pages…';
+
+  try {
+    const response = await fetch('/api/search/pages?' + new URLSearchParams(criteria));
+    const data = await readJsonResponse(response, 'Page discovery');
+    if (!response.ok) throw new Error(data.error || 'Could not discover available pages.');
+    if (!data.totalPages) throw new Error('No result pages found for this search.');
+
+    pageDiscovery = { key: criteriaKey, from: data.from || 1, to: data.to || data.totalPages };
+    const startInput = document.getElementById('startPage');
+    startInput.min = String(pageDiscovery.from);
+    startInput.max = String(pageDiscovery.to);
+    startInput.value = String(pageDiscovery.from);
+    document.getElementById('pageRangeNote').textContent = `Available pages: ${pageDiscovery.from} to ${pageDiscovery.to}. Choose where scraping should start.`;
+    document.getElementById('pageStartBlock').hidden = false;
+    document.getElementById('searchBtnText').textContent = 'Start Scraping';
+    setAgentStatus('idle', `Pages ${pageDiscovery.from}-${pageDiscovery.to}`);
+    showToast(`Pages available: ${pageDiscovery.from} to ${pageDiscovery.to}. Select a start page.`);
+  } catch (error) {
+    resetPageSelection();
+    showToast(error.message || 'Could not discover pages.');
+    setAgentStatus('error', 'Error');
+  } finally {
+    isSearching = false;
+    document.getElementById('searchBtn').disabled = false;
+  }
+}
 
 function startSearch() {
   if (isSearching) return;
-  const category = document.getElementById('category').value.trim();
-  const country  = document.getElementById('country').value.trim();
-  const city     = document.getElementById('city').value.trim();
+  const { category, country, city } = currentSearchCriteria();
   if (!category && !country && !city) { showToast('Fill at least one search field.'); return; }
+  const criteria = { category, country, city };
+  const criteriaKey = searchCriteriaKey(criteria);
+
+  if (!pageDiscovery || pageDiscovery.key !== criteriaKey) {
+    resetPageSelection();
+    discoverPages(criteria, criteriaKey);
+    return;
+  }
+
+  const startPageInput = document.getElementById('startPage');
+  const startPage = Number.parseInt(startPageInput.value, 10);
+  if (!Number.isInteger(startPage) || startPage < pageDiscovery.from || startPage > pageDiscovery.to) {
+    showToast(`Choose a start page from ${pageDiscovery.from} to ${pageDiscovery.to}.`);
+    startPageInput.focus();
+    return;
+  }
 
   isSearching = true;
   sessionLeads = [];
@@ -295,7 +637,38 @@ function startSearch() {
   document.getElementById('resultsSection').style.display = 'none';
   document.getElementById('progressLog').innerHTML = '';
 
-  const evtSource = new EventSource('/api/search?' + new URLSearchParams({ category, country, city }));
+  if (isHostedMode()) {
+    hostedApi.startJob('search', {
+      category,
+      country,
+      city,
+      startPage,
+      targetLeadCount: 100,
+      file_name: `leads-${new Date().toISOString().slice(0, 10)}.json`,
+    }).then(job => {
+      activeHostedJobs.search = job.id;
+      return hostedApi.pollJob(job.id, {
+        intervalMs: 4000,
+        onUpdate(nextJob) {
+          renderJobLog(document.getElementById('progressLog'), nextJob.progress_log);
+          updateJobProgressBar(document.getElementById('progressBar'), nextJob.progress_log);
+        },
+      });
+    }).then(async job => {
+      activeHostedJobs.search = null;
+      if (job.status !== 'completed') throw new Error(job.error_message || 'Search job failed.');
+      const payload = await hostedApi.readFileById(job.result_file_id);
+      finishSearch(payload.data, { skipSavePrompt: true });
+      showToast(`✅ Search complete. Saved ${payload.file.name} to Leads.`);
+    }).catch(error => {
+      activeHostedJobs.search = null;
+      showToast(error.message || 'Search failed.');
+      resetSearch();
+    });
+    return;
+  }
+
+  const evtSource = new EventSource('/api/search?' + new URLSearchParams({ category, country, city, startPage }));
   evtSource.onmessage = e => {
     try {
       const d = JSON.parse(e.data);
@@ -307,9 +680,10 @@ function startSearch() {
   evtSource.onerror = () => { evtSource.close(); showToast('Connection lost.'); resetSearch(); };
 }
 
-function finishSearch(leads) {
+function finishSearch(leads, options = {}) {
   isSearching = false;
   sessionLeads = leads;
+  resetPageSelection();
   document.getElementById('searchBtn').disabled = false;
   document.getElementById('searchBtnText').textContent = 'Find Leads';
   document.getElementById('progressSection').style.display = 'none';
@@ -320,11 +694,12 @@ function finishSearch(leads) {
   renderResultsTable(leads);
   document.getElementById('resultsSection').style.display = 'block';
   document.getElementById('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
-  openSaveModal();
+  if (!options.skipSavePrompt) openSaveModal();
 }
 
 function resetSearch() {
   isSearching = false;
+  resetPageSelection();
   document.getElementById('searchBtn').disabled = false;
   document.getElementById('searchBtnText').textContent = 'Find Leads';
   document.getElementById('progressSection').style.display = 'none';
@@ -366,13 +741,24 @@ function closeSaveModal() { document.getElementById('saveModal').style.display =
 async function confirmSave() {
   const fn = document.getElementById('saveFileName').value.trim();
   if (!fn) { showToast('Enter a filename.'); return; }
+  if (isHostedMode()) {
+    try {
+      const saved = await hostedApi.saveFile('leads', fn, sessionLeads);
+      registerHostedFiles('leads', [saved, ...Array.from(hostedFileIndex.leads.values()).filter(file => file.name !== saved.name)]);
+      showToast(`✅ Saved "${saved.name}" — ${saved.record_count} leads`);
+      closeSaveModal();
+    } catch (e) {
+      showToast('Save failed: ' + e.message);
+    }
+    return;
+  }
   try {
     const r = await fetch('/api/leads/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: fn, leads: sessionLeads })
     });
-    const d = await r.json();
+    const d = await readJsonResponse(r, 'Save leads');
     if (!r.ok) throw new Error(d.error);
     showToast(`✅ Saved "${d.filename}" — ${d.count} leads`);
     closeSaveModal();
@@ -391,8 +777,23 @@ async function loadLeadsLibrary() {
   document.getElementById('leadsDetail').style.display = 'none';
   document.getElementById('leadsLibrary').style.display = 'block';
   try {
+    if (isHostedMode()) {
+      const files = registerHostedFiles('leads', await hostedApi.listFiles('leads'));
+      if (!files.length) { grid.innerHTML = '<div class="file-empty">No saved lead files yet. Run a search and save it.</div>'; return; }
+      grid.innerHTML = files.map(f => `
+        <div class="file-card" onclick="openLeadsFile('${escAttr(f.name)}')">
+          <div class="file-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-info">
+            <h4>${esc(f.name)}</h4>
+            <p>${f.record_count || 0} leads · ${formatDate(f.created_at)}</p>
+          </div>
+        </div>`).join('');
+      return;
+    }
     const r = await fetch('/api/leads/files');
-    const files = await r.json();
+    const files = await readJsonResponse(r, 'Load lead files');
     if (!files.length) { grid.innerHTML = '<div class="file-empty">No saved lead files yet. Run a search and save it.</div>'; return; }
     grid.innerHTML = files.map(f => `
       <div class="file-card" onclick="openLeadsFile('${escAttr(f.name)}')">
@@ -409,8 +810,24 @@ async function loadLeadsLibrary() {
 
 async function openLeadsFile(name) {
   try {
+    if (isHostedMode()) {
+      const payload = await loadHostedFile('leads', name);
+      currentLeadsData = payload.data;
+      currentLeadsFile = name;
+      currentLeadsFileMeta = payload.file || payload.meta;
+      leadsSelectedIndices.clear();
+      document.getElementById('leadsLibrary').style.display = 'none';
+      document.getElementById('leadsDetail').style.display = 'block';
+      document.getElementById('leadsDetailName').textContent = name;
+      document.getElementById('enrichProgress').style.display = 'none';
+      document.getElementById('leadsFilterInput').value = '';
+      document.getElementById('leadsFilterMeta').textContent = '';
+      renderLeadsDetailTable(currentLeadsData);
+      updateBulkDeleteBtn();
+      return;
+    }
     const r = await fetch('/api/leads/file/' + encodeURIComponent(name));
-    currentLeadsData = await r.json();
+    currentLeadsData = await readJsonResponse(r, 'Open lead file');
     currentLeadsFile = name;
     leadsSelectedIndices.clear();
     document.getElementById('leadsLibrary').style.display = 'none';
@@ -428,6 +845,7 @@ function closeLeadsDetail() {
   document.getElementById('leadsDetail').style.display = 'none';
   document.getElementById('leadsLibrary').style.display = 'block';
   currentLeadsFile = null;
+  currentLeadsFileMeta = null;
   currentLeadsData = [];
   leadsSelectedIndices.clear();
   updateBulkDeleteBtn();
@@ -523,12 +941,21 @@ async function deleteSelectedLeads() {
   // Filter out selected indices
   const remaining = currentLeadsData.filter((_, i) => !leadsSelectedIndices.has(i));
   try {
+    if (isHostedMode()) {
+      await hostedApi.updateFile(currentLeadsFileMeta.id, remaining, { name: currentLeadsFile });
+      showToast(`✅ Deleted ${leadsSelectedIndices.size} lead${leadsSelectedIndices.size > 1 ? 's' : ''}. ${remaining.length} remaining.`);
+      currentLeadsData = remaining;
+      leadsSelectedIndices.clear();
+      updateBulkDeleteBtn();
+      renderLeadsDetailTable(currentLeadsData);
+      return;
+    }
     const r = await fetch('/api/leads/file/' + encodeURIComponent(currentLeadsFile), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ leads: remaining })
     });
-    const d = await r.json();
+    const d = await readJsonResponse(r, 'Delete selected leads');
     if (!r.ok) throw new Error(d.error);
     showToast(`✅ Deleted ${leadsSelectedIndices.size} lead${leadsSelectedIndices.size > 1 ? 's' : ''}. ${remaining.length} remaining.`);
     currentLeadsData = remaining;
@@ -546,6 +973,13 @@ function exportCurrentLeads() {
 async function deleteLeadsFile() {
   if (!currentLeadsFile || !confirm(`Delete "${currentLeadsFile}"?`)) return;
   try {
+    if (isHostedMode()) {
+      await hostedApi.deleteFile(currentLeadsFileMeta.id);
+      showToast('File deleted.');
+      closeLeadsDetail();
+      loadLeadsLibrary();
+      return;
+    }
     await fetch('/api/leads/file/' + encodeURIComponent(currentLeadsFile), { method:'DELETE' });
     showToast('File deleted.');
     closeLeadsDetail();
@@ -596,6 +1030,38 @@ function startEnrichment() {
   document.getElementById('enrichSubText').textContent =
     `Enriching ${scopeText} via Google Maps… (est. ${estimatedMins} min)`;
   setAgentStatus('running', 'Find Leads running…');
+
+  if (isHostedMode()) {
+    hostedApi.startJob('enrich', {
+      source_file_id: currentLeadsFileMeta.id,
+      selectedIndexes,
+      file_name: currentLeadsFile,
+    }).then(job => {
+      activeHostedJobs.enrich = job.id;
+      return hostedApi.pollJob(job.id, {
+        intervalMs: 4000,
+        onUpdate(nextJob) {
+          renderJobLog(logEl, nextJob.progress_log);
+          document.getElementById('enrichSubText').textContent = nextJob.progress_step || `Enriching ${scopeText} via Google Maps…`;
+        },
+      });
+    }).then(async job => {
+      activeHostedJobs.enrich = null;
+      if (job.status !== 'completed') throw new Error(job.error_message || 'Enrichment failed.');
+      showToast(`✅ Saved to CRM: ${(job.result_summary_json || {}).file_name || currentLeadsFile}`);
+      document.getElementById('enrichSubText').textContent =
+        `✅ Complete! ${((job.result_summary_json || {}).count || 0)} leads saved to CRM tab.`;
+      finishEnrichment(btn, stopBtn);
+      setAgentStatus('done', 'Enrichment complete');
+      loadCrmLibrary();
+    }).catch(error => {
+      activeHostedJobs.enrich = null;
+      showToast('Enrichment error: ' + error.message);
+      finishEnrichment(btn, stopBtn);
+      setAgentStatus('error', 'Error');
+    });
+    return;
+  }
 
   fetch('/api/enrich/stream', {
     method:  'POST',
@@ -649,6 +1115,13 @@ function finishEnrichment(btn, stopBtn) {
 
 async function stopEnrichment() {
   try {
+    if (isHostedMode()) {
+      if (!activeHostedJobs.enrich) throw new Error('No hosted enrichment job is running.');
+      await hostedApi.cancelJob(activeHostedJobs.enrich);
+      showToast('⏹ Cancellation requested.');
+      setAgentStatus('idle', 'Stopping…');
+      return;
+    }
     await fetch('/api/enrich/stop', { method: 'POST' });
     showToast('⏹ Stop requested — finishing current lead…');
     setAgentStatus('idle', 'Stopping…');
@@ -669,8 +1142,23 @@ async function loadCrmLibrary() {
   document.getElementById('crmDetail').style.display = 'none';
   document.getElementById('crmLibrary').style.display = 'block';
   try {
+    if (isHostedMode()) {
+      const files = registerHostedFiles('crm', await hostedApi.listFiles('crm'));
+      if (!files.length) { grid.innerHTML = '<div class="file-empty">No CRM files yet. Run "Find Leads" on a saved scrape.</div>'; return; }
+      grid.innerHTML = files.map(f => `
+        <div class="file-card crm-card" onclick="openCrmFile('${escAttr(f.name)}')">
+          <div class="file-icon" style="background:rgba(130,179,107,0.12);color:var(--green)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="file-info">
+            <h4>${esc(f.name)}</h4>
+            <p>${f.record_count || 0} leads · ${formatDate(f.created_at)}</p>
+          </div>
+        </div>`).join('');
+        return;
+    }
     const r = await fetch('/api/crm/files');
-    const files = await r.json();
+    const files = await readJsonResponse(r, 'Load CRM files');
     if (!files.length) { grid.innerHTML = '<div class="file-empty">No CRM files yet. Run "Find Leads" on a saved scrape.</div>'; return; }
     grid.innerHTML = files.map(f => `
       <div class="file-card crm-card" onclick="openCrmFile('${escAttr(f.name)}')">
@@ -687,8 +1175,24 @@ async function loadCrmLibrary() {
 
 async function openCrmFile(name) {
   try {
+    if (isHostedMode()) {
+      const payload = await loadHostedFile('crm', name);
+      currentCrmData = payload.data;
+      currentCrmFile = name;
+      currentCrmFileMeta = payload.file || payload.meta;
+      crmSelectedIndices.clear();
+      crmStatusFilter = 'all';
+      document.getElementById('crmLibrary').style.display = 'none';
+      document.getElementById('crmDetail').style.display = 'block';
+      document.getElementById('crmDetailName').textContent = name;
+      document.getElementById('crmFilterInput').value = '';
+      document.querySelectorAll('.crm-filter-chip').forEach(c => c.classList.remove('active'));
+      document.getElementById('crmChipAll').classList.add('active');
+      renderCrmDetailTable();
+      return;
+    }
     const r = await fetch('/api/crm/file/' + encodeURIComponent(name));
-    currentCrmData = await r.json();
+    currentCrmData = await readJsonResponse(r, 'Open CRM file');
     currentCrmFile = name;
     crmSelectedIndices.clear();
     crmStatusFilter = 'all';
@@ -703,10 +1207,31 @@ async function openCrmFile(name) {
   } catch { showToast('Could not open CRM file.'); }
 }
 
+async function refreshCurrentCrmFile() {
+  if (!currentCrmFile) return;
+  try {
+    if (isHostedMode()) {
+      const payload = await loadHostedFile('crm', currentCrmFile);
+      currentCrmData = payload.data;
+      currentCrmFileMeta = payload.file || payload.meta;
+      crmSelectedIndices = new Set([...crmSelectedIndices].filter(i => i >= 0 && i < currentCrmData.length));
+      renderCrmDetailTable();
+      return;
+    }
+    const r = await fetch('/api/crm/file/' + encodeURIComponent(currentCrmFile));
+    currentCrmData = await readJsonResponse(r, 'Refresh CRM file');
+    crmSelectedIndices = new Set([...crmSelectedIndices].filter(i => i >= 0 && i < currentCrmData.length));
+    renderCrmDetailTable();
+  } catch {
+    showToast('CRM updated, but the table refresh failed.');
+  }
+}
+
 function closeCrmDetail() {
   document.getElementById('crmDetail').style.display = 'none';
   document.getElementById('crmLibrary').style.display = 'block';
   currentCrmFile = null;
+  currentCrmFileMeta = null;
   currentCrmData = [];
   crmSelectedIndices.clear();
 }
@@ -716,7 +1241,7 @@ function getCrmFilteredEntries() {
   const q = (document.getElementById('crmFilterInput').value || '').toLowerCase();
   return currentCrmData.map((lead, origIdx) => ({ lead, origIdx })).filter(entry => {
     const l = entry.lead;
-    const text = [l.name, l.address_full, l.address, l.status, l.website, l.phone, ...getLeadPhoneNumbers(l), ...getLeadSocialLinks(l)].join(' ').toLowerCase();
+    const text = [l.name, l.address_full, l.address, l.status, l.website, l.facebook_page_id, l.phone, ...getLeadPhoneNumbers(l), ...getLeadSocialLinks(l)].join(' ').toLowerCase();
     const matchText = !q || text.includes(q);
     const status = (l.status || '').toLowerCase();
     let matchStatus = true;
@@ -762,13 +1287,9 @@ function toggleCrmRow(origIdx) {
 function updateCrmSelectionUI() {
   const count = crmSelectedIndices.size;
   const deleteBtn = document.getElementById('crmDeleteSelectedBtn');
-  const emailBtn  = document.getElementById('crmGenerateEmailsBtn');
   const countEl   = document.getElementById('crmSelectedCount');
-  const emailCountEl = document.getElementById('crmEmailSelectedCount');
   deleteBtn.style.display = count > 0 ? '' : 'none';
-  if (emailBtn) emailBtn.style.display = count > 0 ? '' : 'none';
   if (countEl) countEl.textContent = count;
-  if (emailCountEl) emailCountEl.textContent = count;
   // Sync select-all checkbox state
   const entries = getCrmFilteredEntries();
   const visibleSelected = entries.filter(entry => crmSelectedIndices.has(entry.origIdx)).length;
@@ -803,15 +1324,11 @@ function renderCrmDetailTable() {
       <td class="col-address">${esc(l.address_full||l.address||'—')}</td>
       <td class="col-website">${websiteCell(l.website_full||l.website)}</td>
       <td class="col-social">${socialCell(l)}</td>
+      <td style="font-family:var(--mono);font-size:.78rem">${esc(l.facebook_page_id || '—')}</td>
       <td class="col-phone">${phoneCell(l)}</td>
       <td class="col-status">${statusBadge(l.status)}</td>
       <td style="color:${confColor};font-family:var(--mono);font-size:.82rem">${conf}%</td>
       <td style="color:var(--muted);font-size:.78rem">${esc(l.match_source||'—')}</td>
-      <td>
-        <button class="btn-ghost" style="padding:4px 8px;font-size:0.75rem;" onclick="openAiModal(${i})">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Pitch
-        </button>
-      </td>
     </tr>`;
   }).join('');
 
@@ -824,6 +1341,14 @@ async function deleteSelectedCrm() {
   const selected = new Set(crmSelectedIndices);
   const remaining = currentCrmData.filter((_, i) => !selected.has(i));
   try {
+    if (isHostedMode()) {
+      await hostedApi.updateFile(currentCrmFileMeta.id, remaining, { name: currentCrmFile });
+      currentCrmData = remaining;
+      crmSelectedIndices.clear();
+      renderCrmDetailTable();
+      showToast(`Deleted ${selected.size} record(s).`);
+      return;
+    }
     await fetch('/api/crm/file/' + encodeURIComponent(currentCrmFile), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -841,89 +1366,232 @@ function exportCrmFile() {
   downloadCSV(leadsToCSV(currentCrmData), currentCrmFile.replace('.json','.csv'));
 }
 
-function getAiValueProposition() {
-  const selectVal = document.getElementById('aiServiceSelect').value;
-  return selectVal === 'custom'
-    ? document.getElementById('aiValueProp').value.trim()
-    : selectVal;
-}
-
-function saveAiSettings() {
-  const baseUrl = document.getElementById('aiBaseUrl').value.trim();
-  const modelName = document.getElementById('aiModelName').value.trim();
-  localStorage.setItem('aiBaseUrl', baseUrl);
-  localStorage.setItem('aiModelName', modelName);
-  return { baseUrl, modelName };
-}
-
-function hydrateAiSettings() {
-  const savedUrl = localStorage.getItem('aiBaseUrl');
-  const savedModel = localStorage.getItem('aiModelName');
-  if (savedUrl) document.getElementById('aiBaseUrl').value = savedUrl;
-  if (savedModel) document.getElementById('aiModelName').value = savedModel;
-}
-
-async function generateSelectedCrmEmails() {
-  if (!crmSelectedIndices.size || !currentCrmFile) return;
-  hydrateAiSettings();
-
-  const leads = [...crmSelectedIndices]
-    .sort((a, b) => a - b)
-    .map(i => currentCrmData[i])
-    .filter(Boolean);
-
-  if (!leads.length) return;
-
-  const estimatedMins = Math.max(1, Math.ceil((leads.length * 45) / 60));
-  if (!confirm(`Generate AI emails for ${leads.length} selected lead(s)?\n\nEstimated time: ~${estimatedMins} minute${estimatedMins > 1 ? 's' : ''} with your local llama.cpp speed.\n\nProgress will be shown on this CRM page and the result will be saved to Email List.`)) return;
-
-  const { baseUrl, modelName } = saveAiSettings();
-  const valueProp = getAiValueProposition();
-  const btn = document.getElementById('crmGenerateEmailsBtn');
-  const panel = document.getElementById('crmEmailProgress');
-  const title = document.getElementById('crmEmailProgressTitle');
-  const sub = document.getElementById('crmEmailProgressSub');
-  const count = document.getElementById('crmEmailProgressCount');
-  const bar = document.getElementById('crmEmailProgressBar');
-  const log = document.getElementById('crmEmailLog');
+async function findAdsForCurrentCrm() {
+  if (!currentCrmFile) return;
+  const btn = document.getElementById('crmFindAdsBtn');
+  const panel = document.getElementById('crmFindAdsProgress');
+  const title = document.getElementById('crmFindAdsProgressTitle');
+  const sub = document.getElementById('crmFindAdsProgressSub');
+  const count = document.getElementById('crmFindAdsProgressCount');
+  const bar = document.getElementById('crmFindAdsProgressBar');
+  const log = document.getElementById('crmFindAdsLog');
 
   btn.disabled = true;
+  btn.textContent = 'Finding ads...';
   panel.style.display = 'block';
-  title.textContent = 'Generating selected emails...';
-  sub.textContent = 'Connecting to local AI model. Each completed lead will update here.';
-  count.textContent = `0 / ${leads.length}`;
-  bar.style.width = '0%';
+  title.textContent = 'Finding ads...';
+  const selectedIndexes = [...crmSelectedIndices]
+    .filter(index => Number.isInteger(index) && index >= 0 && index < currentCrmData.length)
+    .sort((a, b) => a - b);
+  const scopedLeads = selectedIndexes.length
+    ? selectedIndexes.map(index => currentCrmData[index]).filter(Boolean)
+    : currentCrmData;
+  const pageIdCount = scopedLeads.filter(lead => String(lead.facebook_page_id || '').trim()).length;
+  const scopeText = selectedIndexes.length
+    ? `${selectedIndexes.length} selected lead(s)`
+    : `all ${currentCrmData.length} lead(s)`;
+  sub.textContent = `Checking ${pageIdCount} Facebook Page ID(s) from ${scopeText} in ${currentCrmFile}.`;
+  count.textContent = '0 saved';
+  bar.style.width = '25%';
   log.innerHTML = '';
-  setAgentStatus('running', 'AI emails running...');
+  const loggedMessages = new Set();
+  const addFindAdsLog = message => {
+    if (loggedMessages.has(message)) return;
+    loggedMessages.add(message);
+    addLog(log, message);
+  };
+  const logFindAdsFailures = data => {
+    (data.failedLeads || []).forEach(failure => {
+      addFindAdsLog(`Failed lead: ${failure.name || `Lead ${Number(failure.index) + 1}`} - ${failure.reason || 'Unknown reason'}`);
+    });
+  };
+  addFindAdsLog('Checking Facebook Page IDs in Meta Ads Library...');
+  setAgentStatus('running', 'Finding ads...');
 
   try {
-    const res = await fetch('/api/ai/generate-batch/stream', {
-      method: 'POST',
+    if (!pageIdCount) {
+      addFindAdsLog('No CRM leads with facebook_page_id were found.');
+    }
+
+    const data = isHostedMode()
+      ? await hostedApi.startJob('find-ads', {
+          source_file_id: currentCrmFileMeta.id,
+          country: 'ALL',
+          ...(selectedIndexes.length ? { selectedIndexes } : {}),
+          file_name: `fb-ad-status-${currentCrmFile.replace(/\.json$/i, '')}-all-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+        }).then(job => {
+          activeHostedJobs['find-ads'] = job.id;
+          return hostedApi.pollJob(job.id, {
+            intervalMs: 4000,
+            onUpdate(nextJob) {
+              renderJobLog(log, nextJob.progress_log);
+              updateJobProgressBar(bar, nextJob.progress_log);
+              sub.textContent = nextJob.progress_step || sub.textContent;
+            },
+          });
+        }).then(job => {
+          activeHostedJobs['find-ads'] = null;
+          if (job.status !== 'completed') throw new Error(job.error_message || 'Find Ads failed');
+          const summary = job.result_summary_json || {};
+          return {
+            success: true,
+            checked: summary.checked || 0,
+            saved: summary.checked || 0,
+            runningAds: summary.running_ads || 0,
+            notRunningAds: summary.not_running_ads || 0,
+            unknown: summary.unknown || 0,
+          };
+        })
+      : await (async () => {
+          const res = await fetch('/api/crm/find-ads', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceFile: currentCrmFile,
+              country: 'ALL',
+              ...(selectedIndexes.length ? { selectedIndexes } : {})
+            })
+          });
+          const raw = await readJsonResponse(res, 'Find Ads');
+          if (!res.ok || !raw.success) {
+            const error = new Error(raw.error || 'Find Ads failed');
+            error.progressMessages = raw.progressMessages || [];
+            throw error;
+          }
+          return raw;
+        })();
+
+    bar.style.width = '100%';
+    count.textContent = `${data.saved} saved`;
+    title.textContent = 'Find Ads complete';
+    sub.textContent = `${data.checked} checked, ${data.runningAds} running ads, ${data.notRunningAds} not running ads, ${data.skipped} skipped.`;
+    (data.progressMessages || []).forEach(message => addFindAdsLog(message));
+    (data.warnings || []).slice(0, 8).forEach(warning => addFindAdsLog(warning));
+    if ((data.warnings || []).length > 8) addFindAdsLog(`${data.warnings.length - 8} more warning(s).`);
+    logFindAdsFailures(data);
+    showToast(`Saved ad status for ${data.saved} compan${data.saved === 1 ? 'y' : 'ies'} to Final List.`);
+    setAgentStatus('done', 'Find Ads complete');
+  } catch (error) {
+    activeHostedJobs['find-ads'] = null;
+    title.textContent = 'Find Ads failed';
+    sub.textContent = error.message;
+    (error.progressMessages || []).forEach(message => addFindAdsLog(message));
+    (error.failedLeads || []).forEach(failure => {
+      addFindAdsLog(`Failed lead: ${failure.name || `Lead ${Number(failure.index) + 1}`} - ${failure.reason || 'Unknown reason'}`);
+    });
+    addFindAdsLog(`Error: ${error.message}`);
+    showToast('Find Ads failed: ' + error.message, 7000);
+    setAgentStatus('error', 'Find Ads error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Find Ads';
+  }
+}
+
+/* ════════════════════════════════════════════════
+   GET FACEBOOK PAGE IDs (Playwright scraper)
+════════════════════════════════════════════════ */
+async function getFbPageIdsForCurrentCrm() {
+  if (!currentCrmFile) return;
+
+  const selectedIndexes = [...crmSelectedIndices]
+    .filter(i => Number.isInteger(i) && i >= 0 && i < currentCrmData.length)
+    .sort((a, b) => a - b);
+  const sourceLeads = selectedIndexes.length
+    ? selectedIndexes.map(i => currentCrmData[i])
+    : currentCrmData;
+  const hasFacebook = lead => getLeadSocialLinks(lead).some(url => /(^|\/\/|\.)(facebook|fb)\.com/i.test(String(url || '')));
+  const leadsWithFb = sourceLeads.filter(hasFacebook);
+
+  if (selectedIndexes.length && !leadsWithFb.length) {
+    showToast('No selected leads with a Facebook URL.');
+    return;
+  }
+  if (!selectedIndexes.length && !leadsWithFb.length) {
+    showToast('No leads with a Facebook URL in this CRM file.');
+    return;
+  }
+
+  const scopeText = selectedIndexes.length
+    ? `${leadsWithFb.length} selected lead${leadsWithFb.length === 1 ? '' : 's'} with a Facebook URL`
+    : `${leadsWithFb.length} lead${leadsWithFb.length === 1 ? '' : 's'} with a Facebook URL`;
+
+  if (!confirm(
+    `Get Facebook Page IDs for ${scopeText}?\n\n` +
+    `This opens a browser window and visits each page.\n` +
+    `Found Page IDs will be saved back into this CRM file.`
+  )) return;
+
+  const btn   = document.getElementById('crmFbPageIdsBtn');
+  const panel = document.getElementById('crmFbPageIdsProgress');
+  const title = document.getElementById('crmFbPageIdsTitle');
+  const sub   = document.getElementById('crmFbPageIdsSub');
+  const count = document.getElementById('crmFbPageIdsCount');
+  const bar   = document.getElementById('crmFbPageIdsBar');
+  const log   = document.getElementById('crmFbPageIdsLog');
+
+  btn.disabled = true;
+  btn.querySelector('svg').style.display = 'none';
+  btn.childNodes[btn.childNodes.length - 1].textContent = ' Running…';
+  panel.style.display = 'block';
+  title.textContent = 'Getting Facebook Page IDs…';
+  sub.textContent = `Visiting ${scopeText} from "${currentCrmFile}".`;
+  count.textContent = '0 found';
+  bar.style.width = '5%';
+  log.innerHTML = '';
+  setAgentStatus('running', 'FB Page IDs running…');
+
+  let foundCount = 0;
+  const total = leadsWithFb.length;
+
+  try {
+    if (isHostedMode()) {
+      const job = await hostedApi.startJob('fb-page-ids', {
+        source_file_id: currentCrmFileMeta.id,
+        selectedIndexes,
+        report_file_name: `fb-page-ids-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+      });
+      activeHostedJobs['fb-page-ids'] = job.id;
+      const result = await hostedApi.pollJob(job.id, {
+        intervalMs: 4000,
+        onUpdate(nextJob) {
+          renderJobLog(log, nextJob.progress_log);
+          updateJobProgressBar(bar, nextJob.progress_log);
+          sub.textContent = nextJob.progress_step || sub.textContent;
+        },
+      });
+      activeHostedJobs['fb-page-ids'] = null;
+      if (result.status !== 'completed') throw new Error(result.error_message || 'Facebook Page ID job failed');
+      const summary = result.result_summary_json || {};
+      title.textContent = 'Facebook Page IDs saved to CRM';
+      sub.textContent = `Done — ${summary.found || 0} Page IDs found.`;
+      count.textContent = `${summary.found || 0} found`;
+      bar.style.width = '100%';
+      showToast(`✅ Updated CRM — ${summary.found || 0} Page IDs found, ${summary.updated || 0} row(s) updated.`);
+      setAgentStatus('done', 'FB Page IDs complete');
+      await refreshCurrentCrmFile();
+      loadEmailsList();
+      return;
+    }
+
+    const res = await fetch('/api/crm/fb-page-ids/stream', {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        leads,
+      body:    JSON.stringify({
         sourceFile: currentCrmFile,
-        valueProposition: valueProp,
-        baseUrl,
-        model: modelName
-      })
+        selectedIndexes,
+        updateCrm: true,
+      }),
     });
 
     if (!res.ok || !res.body) {
-      const raw = await res.text();
-      let data = {};
-      try { data = raw ? JSON.parse(raw) : {}; } catch {}
-      throw new Error(data.error || raw || 'Failed to start batch generation');
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || `Server returned ${res.status}`);
     }
 
     const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
-
-    function updateProgress(done, total) {
-      count.textContent = `${done} / ${total}`;
-      bar.style.width = `${Math.round((done / total) * 100)}%`;
-    }
+    const dec    = new TextDecoder();
+    let   buf    = '';
 
     async function pump() {
       const { done, value } = await reader.read();
@@ -935,51 +1603,70 @@ async function generateSelectedCrmEmails() {
         if (!line.startsWith('data:')) return;
         try {
           const d = JSON.parse(line.slice(5).trim());
-          if (d.type === 'status' || d.type === 'progress') {
+
+          if (d.type === 'status') {
             addLog(log, d.message);
-            if (d.index && d.total) {
-              sub.textContent = d.company ? `Working on ${d.company}` : d.message;
-              updateProgress(Math.max(0, d.index - 1), d.total);
-            }
+            sub.textContent = d.message;
           }
-          if (d.type === 'lead_done' || d.type === 'lead_error') {
-            addLog(log, d.type === 'lead_done' ? `Saved email for ${d.company}.` : `Failed: ${d.message}`);
-            updateProgress(d.index, d.total);
+
+          if (d.type === 'progress') {
+            addLog(log, d.message);
+            if (d.company) sub.textContent = `Checking: ${d.company}`;
           }
+
+          if (d.type === 'lead_done') {
+            foundCount += 1;
+            count.textContent = `${foundCount} found`;
+            bar.style.width = `${Math.min(95, Math.round((foundCount / total) * 100))}%`;
+            addLog(log, d.message);
+          }
+
           if (d.type === 'done') {
-            title.textContent = 'Email file saved';
-            sub.textContent = `${d.successCount} generated, ${d.errorCount} failed. Saved as ${d.filename}.`;
-            updateProgress(d.count, d.count || leads.length);
-            showToast(`Saved to Email List: ${d.filename}`);
-            crmSelectedIndices.clear();
-            renderCrmDetailTable();
-            setAgentStatus('done', 'AI emails complete');
+            title.textContent = 'Facebook Page IDs saved to CRM';
+            sub.textContent   = d.message || `Done — ${d.found} Page IDs found.`;
+            count.textContent = `${d.found || foundCount} found`;
+            bar.style.width   = '100%';
+            showToast(`✅ Updated CRM — ${d.found} Page IDs found, ${d.updated || 0} row(s) updated.`);
+            setAgentStatus('done', 'FB Page IDs complete');
+            refreshCurrentCrmFile();
           }
+
           if (d.type === 'error') {
             throw new Error(d.message);
           }
-        } catch (error) {
-          throw error;
+        } catch (err) {
+          addLog(log, `Error: ${err.message}`);
         }
       });
       await pump();
     }
 
     await pump();
-  } catch (error) {
-    title.textContent = 'Email generation failed';
-    sub.textContent = error.message;
-    addLog(log, `Error: ${error.message}`);
-    showToast('Email generation failed: ' + error.message, 7000);
-    setAgentStatus('error', 'AI email error');
+  } catch (err) {
+    activeHostedJobs['fb-page-ids'] = null;
+    title.textContent = 'FB Page IDs failed';
+    sub.textContent   = err.message;
+    addLog(log, `Error: ${err.message}`);
+    showToast('FB Page IDs failed: ' + err.message, 7000);
+    setAgentStatus('error', 'FB Page IDs error');
   } finally {
     btn.disabled = false;
+    const svgEl = btn.querySelector('svg');
+    if (svgEl) svgEl.style.display = '';
+    btn.childNodes[btn.childNodes.length - 1].textContent = ' Get FB Page IDs';
   }
 }
 
 async function deleteCrmFile() {
   if (!currentCrmFile || !confirm(`Delete "${currentCrmFile}"?`)) return;
   try {
+    if (isHostedMode()) {
+      await hostedApi.deleteFile(currentCrmFileMeta.id);
+      showToast('File deleted.');
+      closeCrmDetail();
+      loadCrmLibrary();
+      return;
+    }
     await fetch('/api/crm/file/' + encodeURIComponent(currentCrmFile), { method:'DELETE' });
     showToast('File deleted.');
     closeCrmDetail();
@@ -989,111 +1676,192 @@ async function deleteCrmFile() {
 
 
 /* ════════════════════════════════════════════════
-   EMAIL LIST LIBRARY
+   FINAL LIST
 ════════════════════════════════════════════════ */
-let currentEmailsFile = null;
-let currentEmailsData = [];
+let currentFinalListData = [];
+let currentFinalListFile = null;
 
-async function loadEmailsLibrary() {
-  const grid = document.getElementById('emailsGrid');
+async function loadFinalList() {
+  const grid = document.getElementById('finalListGrid');
   if (!grid) return;
-  grid.innerHTML = '<div class="file-empty">Loading…</div>';
-  document.getElementById('emailsDetail').style.display  = 'none';
-  document.getElementById('emailsLibrary').style.display = 'block';
+  grid.innerHTML = '<div class="file-empty">Loading...</div>';
+  document.getElementById('finalListDetail').style.display = 'none';
+  document.getElementById('finalListLibrary').style.display = 'block';
   try {
-    const r = await fetch('/api/emails/files');
-    const files = await r.json();
+    if (isHostedMode()) {
+      const files = registerHostedFiles('final-list', await hostedApi.listFiles('final-list'));
+      if (!files.length) {
+        grid.innerHTML = '<div class="file-empty">No Final List files yet. Open a CRM file and run Find Ads.</div>';
+        return;
+      }
+      grid.innerHTML = files.map(f => `
+        <div class="file-card crm-card" onclick="openFinalListFile('${escAttr(f.name)}')">
+          <div class="file-icon" style="background:rgba(71,184,198,0.12);color:var(--cyan)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <div class="file-info">
+            <h4>${esc(f.name)}</h4>
+            <p>${f.record_count || 0} companies · ${formatDate(f.created_at)}</p>
+          </div>
+        </div>`).join('');
+      return;
+    }
+    const r = await fetch('/api/final-list/files');
+    const files = await readJsonResponse(r, 'Load Final List files');
     if (!files.length) {
-      grid.innerHTML = '<div class="file-empty">No email list files yet.</div>';
+      grid.innerHTML = '<div class="file-empty">No Final List files yet. Open a CRM file and run Find Ads.</div>';
       return;
     }
     grid.innerHTML = files.map(f => `
-      <div class="file-card email-card" onclick="openEmailsFile('${escAttr(f.name)}')">
-        <div class="file-icon" style="background:rgba(117,169,173,.12);color:var(--cyan)">
+      <div class="file-card crm-card" onclick="openFinalListFile('${escAttr(f.name)}')">
+        <div class="file-icon" style="background:rgba(71,184,198,0.12);color:var(--cyan)">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         </div>
         <div class="file-info">
           <h4>${esc(f.name)}</h4>
-          <p>${f.leadCount} contacts · ${formatDate(f.createdAt)}</p>
+          <p>${f.leadCount} companies · ${formatDate(f.createdAt)}</p>
         </div>
       </div>`).join('');
-  } catch { grid.innerHTML = '<div class="file-empty">Failed to load email lists.</div>'; }
+  } catch {
+    grid.innerHTML = '<div class="file-empty">Failed to load Final List.</div>';
+  }
 }
 
-async function openEmailsFile(name) {
+async function openFinalListFile(name) {
+  const body = document.getElementById('finalListBody');
+  body.innerHTML = '<tr class="crm-empty-row"><td colspan="12">Loading...</td></tr>';
   try {
-    const r = await fetch('/api/emails/file/' + encodeURIComponent(name));
-    currentEmailsData = await r.json();
-    currentEmailsFile = name;
-    document.getElementById('emailsLibrary').style.display = 'none';
-    document.getElementById('emailsDetail').style.display  = 'block';
-    document.getElementById('emailsDetailName').textContent = name;
-    renderEmailsDetailTable(currentEmailsData);
-  } catch { showToast('Could not open email list file.'); }
+    if (isHostedMode()) {
+      const payload = await loadHostedFile('final-list', name);
+      currentFinalListData = payload.data;
+      currentFinalListFile = name;
+      currentFinalListFileMeta = payload.file || payload.meta;
+      document.getElementById('finalListLibrary').style.display = 'none';
+      document.getElementById('finalListDetail').style.display = 'block';
+      document.getElementById('finalListDetailName').textContent = name;
+      renderFinalListTable(currentFinalListData);
+      return;
+    }
+    const r = await fetch('/api/final-list/file/' + encodeURIComponent(name));
+    currentFinalListData = await readJsonResponse(r, 'Open Final List file');
+    currentFinalListFile = name;
+    document.getElementById('finalListLibrary').style.display = 'none';
+    document.getElementById('finalListDetail').style.display = 'block';
+    document.getElementById('finalListDetailName').textContent = name;
+    renderFinalListTable(currentFinalListData);
+  } catch {
+    body.innerHTML = '<tr class="crm-empty-row"><td colspan="12">Failed to load Final List.</td></tr>';
+  }
 }
 
-function closeEmailsDetail() {
-  document.getElementById('emailsDetail').style.display  = 'none';
-  document.getElementById('emailsLibrary').style.display = 'block';
-  currentEmailsFile = null;
-  currentEmailsData = [];
+function closeFinalListDetail() {
+  document.getElementById('finalListDetail').style.display = 'none';
+  document.getElementById('finalListLibrary').style.display = 'block';
+  currentFinalListFile = null;
+  currentFinalListFileMeta = null;
+  currentFinalListData = [];
 }
 
-function renderEmailsDetailTable(contacts) {
-  document.getElementById('emailsDetailBody').innerHTML = contacts.map((c, i) => `
-    <tr class="row-enter" style="animation-delay:${i*12}ms">
-      <td class="col-num">${i+1}</td>
-      <td class="col-name">${esc(c.company || '—')}</td>
-      <td class="col-website">${websiteCell(c.website)}</td>
-      <td class="col-person" style="color:var(--cyan);font-weight:700">${esc(c.service_pitch || c.person_name || '—')}</td>
-      <td class="col-jobtitle">${esc(c.subject || c.job_title || '—')}</td>
-      <td class="col-email">${emailBodyCell(c)}</td>
-      <td style="color:var(--muted);font-size:.78rem;font-family:var(--mono)">${esc(c.error ? 'Failed' : (c.status || c.seniority || 'Generated'))}</td>
-      <td style="color:var(--muted);font-size:.78rem">${esc(c.source_lead || '—')}</td>
-    </tr>`).join('');
+function linkCell(url, label) {
+  if (!url) return '<span class="col-empty">—</span>';
+  return `<a href="${escAttr(url)}" class="website-link">${esc(label || url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 28))}</a>`;
+}
+
+function competitorCell(comp) {
+  if (!comp) return '<span class="col-empty">No running-ad competitor found</span>';
+  const socials = [comp.facebook_url ? linkCell(comp.facebook_url, 'FB') : '', comp.instagram_url ? linkCell(comp.instagram_url, 'IG') : ''].filter(Boolean).join(' ');
+  return `
+    <div style="display:grid;gap:4px">
+      <strong>${esc(comp.name || '—')}</strong>
+      <span style="color:var(--warning);font-size:.76rem;font-family:var(--mono)">${esc(comp.ads_status || '—')}</span>
+      <span>${esc(comp.phone || '—')}</span>
+      <span style="color:var(--muted)">${esc(comp.full_address || '—')}</span>
+      <span>${websiteCell(comp.website)} ${socials}</span>
+    </div>`;
+}
+
+function uniqueRunningCompetitors(competitors) {
+  const seen = new Set();
+  return (Array.isArray(competitors) ? competitors : []).filter(comp => {
+    if (!comp || comp.ads_status !== 'running_ads') return false;
+    const key = [comp.name, comp.phone, comp.website, comp.facebook_url, comp.instagram_url]
+      .map(value => String(value || '').trim().toLowerCase())
+      .filter(Boolean)
+      .join('|');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function renderFinalListTable(items) {
+  const meta = document.getElementById('finalListMeta');
+  if (meta) meta.textContent = `${items.length} compan${items.length === 1 ? 'y' : 'ies'}`;
+  const body = document.getElementById('finalListBody');
+  if (!items.length) {
+    body.innerHTML = '<tr class="crm-empty-row"><td colspan="12">No companies saved yet. Open a CRM file and run Find Ads.</td></tr>';
+    setupTableScrollbars();
+    return;
+  }
+  body.innerHTML = items.map((item, i) => {
+    const company = item.company || {};
+    const competitors = uniqueRunningCompetitors(item.competitors);
+    return `
+      <tr class="row-enter" style="animation-delay:${i*12}ms">
+        <td class="col-num">${i+1}</td>
+        <td class="col-name">${esc(company.name || '—')}</td>
+        <td class="col-phone">${esc(company.phone || '—')}</td>
+        <td class="col-address">${esc(company.full_address || '—')}</td>
+        <td class="col-website">${websiteCell(company.website)}</td>
+        <td class="col-social">${linkCell(company.facebook_url, 'FB')}</td>
+        <td class="col-social">${linkCell(company.instagram_url, 'IG')}</td>
+        <td style="color:var(--warning);font-size:.78rem;font-family:var(--mono)">${esc(company.ads_status || '—')}</td>
+        <td class="col-address">${competitorCell(competitors[0])}</td>
+        <td class="col-address">${competitorCell(competitors[1])}</td>
+        <td style="color:var(--muted);font-size:.78rem">${esc(item.checked_at ? new Date(item.checked_at).toLocaleString() : '—')}</td>
+        <td style="color:var(--muted);font-size:.78rem">${esc(item.reason || (item.warnings || []).join('; ') || '—')}</td>
+      </tr>`;
+  }).join('');
   setupTableScrollbars();
 }
 
-function emailBodyCell(c) {
-  if (c.generated_email) {
-    return `<textarea class="email-preview" readonly>${esc(c.generated_email)}</textarea>`;
-  }
-  if (c.error) {
-    return `<span class="col-empty">${esc(c.error)}</span>`;
-  }
-  return `<a href="mailto:${escAttr(c.email)}" class="email-link">${esc(c.email || '—')}</a>`;
-}
-
-function emailsToCSV(contacts) {
-  const H = ['Company','Website','Service Or Person','Subject Or Job Title','Generated Email Or Email','Status','Source Lead','Address','Phone'];
-  const rows = contacts.map(c =>
-    [
-      c.company,
-      c.website,
-      c.service_pitch || c.person_name,
-      c.subject || c.job_title,
-      c.generated_email || c.email,
-      c.error ? 'Failed: ' + c.error : (c.status || c.seniority),
-      c.source_lead,
-      c.address,
-      c.phone
-    ]
-    .map(v => `"${(v||'').replace(/"/g,'""')}"`).join(','));
+function finalListToCSV(items) {
+  const H = ['Company','Phone','Full Address','Website','Facebook','Instagram','Ads Status','Competitor 1','Competitor 1 Phone','Competitor 1 Address','Competitor 1 Website','Competitor 1 Facebook','Competitor 1 Instagram','Competitor 1 Ads Status','Competitor 2','Competitor 2 Phone','Competitor 2 Address','Competitor 2 Website','Competitor 2 Facebook','Competitor 2 Instagram','Competitor 2 Ads Status','Checked At','Reason','Warnings'];
+  const rows = items.map(item => {
+    const company = item.company || {};
+    const runningCompetitors = uniqueRunningCompetitors(item.competitors);
+    const c1 = runningCompetitors[0] || {};
+    const c2 = runningCompetitors[1] || {};
+    return [
+      company.name, company.phone, company.full_address, company.website, company.facebook_url, company.instagram_url, company.ads_status,
+      c1.name, c1.phone, c1.full_address, c1.website, c1.facebook_url, c1.instagram_url, c1.ads_status,
+      c2.name, c2.phone, c2.full_address, c2.website, c2.facebook_url, c2.instagram_url, c2.ads_status,
+      item.checked_at, item.reason, (item.warnings || []).join(' | ')
+    ].map(v => `"${String(v || '').replace(/"/g,'""')}"`).join(',');
+  });
   return [H.join(','), ...rows].join('\n');
 }
 
-function exportEmailsFile() {
-  if (!currentEmailsData.length) return;
-  downloadCSV(emailsToCSV(currentEmailsData), currentEmailsFile.replace('.json','.csv'));
+function exportFinalList() {
+  if (!currentFinalListData.length) return;
+  const base = (currentFinalListFile || 'final-list.json').replace(/\.json$/i, '');
+  downloadCSV(finalListToCSV(currentFinalListData), `${base}.csv`);
 }
 
-async function deleteEmailsFile() {
-  if (!currentEmailsFile || !confirm(`Delete "${currentEmailsFile}"?`)) return;
+async function clearFinalList() {
+  if (!currentFinalListFile || !confirm(`Delete "${currentFinalListFile}"?`)) return;
   try {
-    await fetch('/api/emails/file/' + encodeURIComponent(currentEmailsFile), { method:'DELETE' });
-    showToast('File deleted.');
-    closeEmailsDetail();
-    loadEmailsLibrary();
+    if (isHostedMode()) {
+      await hostedApi.deleteFile(currentFinalListFileMeta.id);
+      showToast('Final List file deleted.');
+      closeFinalListDetail();
+      loadFinalList();
+      return;
+    }
+    await fetch('/api/final-list/file/' + encodeURIComponent(currentFinalListFile), { method:'DELETE' });
+    showToast('Final List file deleted.');
+    closeFinalListDetail();
+    loadFinalList();
   } catch { showToast('Delete failed.'); }
 }
 
@@ -1103,8 +1871,21 @@ async function deleteEmailsFile() {
 document.addEventListener('DOMContentLoaded', () => {
   buildCategoryList();
   buildCountryList();
+  if (isHostedMode()) {
+    hostedApi.init().then(() => updateAuthUi()).catch(error => {
+      console.error(error);
+      showToast(error.message || 'Hosted mode failed to initialize.');
+      updateAuthUi();
+    });
+    hostedApi.onAuthChange(() => updateAuthUi());
+  } else {
+    updateAuthUi();
+  }
   syncStickyUiOffsets();
   setupTableScrollbars();
+  if (location.pathname === '/final-list') {
+    switchView('final-list');
+  }
   window.addEventListener('resize', syncStickyUiOffsets);
   if (window.ResizeObserver) {
     const navEl = document.querySelector('.nav-island');
@@ -1116,94 +1897,177 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ════════════════════════════════════════════════
-   AI GENERATOR
+   FB PAGE ID REPORTS
 ════════════════════════════════════════════════ */
-let currentAiLeadIndex = null;
+let currentEmailsData = [];
+let currentEmailsFile = null;
 
-function openAiModal(index) {
-  currentAiLeadIndex = index;
-  const rows = getCrmFilteredRows();
-  const lead = rows[index];
-  
-  document.getElementById('aiLeadName').textContent = lead.name || 'this business';
-  document.getElementById('aiEmailResult').value = '';
-  document.getElementById('aiCopyBtn').style.display = 'none';
-  hydrateAiSettings();
-  
-  document.getElementById('aiModal').style.display = 'grid';
-}
-
-function closeAiModal() {
-  document.getElementById('aiModal').style.display = 'none';
-  currentAiLeadIndex = null;
-  document.getElementById('aiSettingsPanel').style.display = 'none';
-}
-
-function toggleAiSettings() {
-  const panel = document.getElementById('aiSettingsPanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-function handleAiServiceChange() {
-  const select = document.getElementById('aiServiceSelect');
-  const customWrapper = document.getElementById('aiCustomPropWrapper');
-  if (select.value === 'custom') {
-    customWrapper.style.display = 'block';
-  } else {
-    customWrapper.style.display = 'none';
-  }
-}
-
-async function generateAiPitch() {
-  if (currentAiLeadIndex === null) return;
-  const rows = getCrmFilteredRows();
-  const lead = rows[currentAiLeadIndex];
-  
-  const valueProp = getAiValueProposition();
-  const { baseUrl, modelName } = saveAiSettings();
-  
-  const btn = document.getElementById('aiGenerateBtn');
-  const btnText = document.getElementById('aiGenerateBtnText');
-  
-  btn.disabled = true;
-  btnText.textContent = 'Generating...';
-  document.getElementById('aiEmailResult').value = 'Connecting to local AI model...';
-  
+async function loadEmailsList() {
+  const grid = document.getElementById('emailsGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="file-empty">Loading...</div>';
+  document.getElementById('emailsDetail').style.display = 'none';
+  document.getElementById('emailsLibrary').style.display = 'block';
   try {
-    const res = await fetch('/api/ai/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lead, valueProposition: valueProp, baseUrl, model: modelName })
-    });
-
-    const raw = await res.text();
-    let data;
-    try {
-      data = raw ? JSON.parse(raw) : {};
-    } catch {
-      throw new Error(`Server returned non-JSON response: ${raw.trim().slice(0, 160) || 'empty response'}`);
+    if (isHostedMode()) {
+      const files = registerHostedFiles('fb-page-id-reports', await hostedApi.listFiles('fb-page-id-reports'));
+      if (!files.length) {
+        grid.innerHTML = '<div class="file-empty">No FB Page ID report files yet.</div>';
+        return;
+      }
+      grid.innerHTML = files.map(f => {
+        return `
+        <div class="file-card crm-card" onclick="openEmailsFile('${escAttr(f.name)}')">
+          <div class="file-icon" style="background:rgba(56,152,255,0.12);color:var(--blue)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+          </div>
+          <div class="file-info">
+            <h4>${esc(f.name)}</h4>
+            <p>${f.record_count || '?'} items · ${formatDate(f.created_at)}</p>
+          </div>
+        </div>`;
+      }).join('');
+      return;
     }
-
-    if (!res.ok) throw new Error(data.error || 'Failed to generate');
-    
-    document.getElementById('aiEmailResult').value = data.email;
-    document.getElementById('aiCopyBtn').style.display = 'inline-flex';
-    showToast('✨ AI pitch generated!');
-  } catch (err) {
-    document.getElementById('aiEmailResult').value = `Error: ${err.message}\nCheck that your local model server is running and that the Base URL points to the API endpoint, such as http://127.0.0.1:8080 or http://127.0.0.1:8080/v1 for llama.cpp.`;
-    showToast('Failed to generate pitch');
-  } finally {
-    btn.disabled = false;
-    btnText.textContent = 'Regenerate Pitch';
+    const r = await fetch('/api/emails/files');
+    const files = (await readJsonResponse(r, 'Load FB Page ID files'))
+      .filter(f => f.name.includes('fb-page-ids'));
+    if (!files.length) {
+      grid.innerHTML = '<div class="file-empty">No FB Page ID report files yet.</div>';
+      return;
+    }
+    grid.innerHTML = files.map(f => {
+      return `
+      <div class="file-card crm-card" onclick="openEmailsFile('${escAttr(f.name)}')">
+        <div class="file-icon" style="background:rgba(56,152,255,0.12);color:var(--blue)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+        </div>
+        <div class="file-info">
+          <h4>${esc(f.name)}</h4>
+          <p>${f.leadCount || '?'} items · ${formatDate(f.createdAt)}</p>
+        </div>
+      </div>`;
+    }).join('');
+  } catch {
+    grid.innerHTML = '<div class="file-empty">Failed to load files.</div>';
   }
 }
 
-function copyAiEmail() {
-  const text = document.getElementById('aiEmailResult').value;
-  if (!text) return;
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('Copied to clipboard');
-  }).catch(err => {
-    showToast('Failed to copy text');
-  });
+async function openEmailsFile(name) {
+  const scroll = document.getElementById('emailsTableScroll');
+  scroll.innerHTML = 'Loading...';
+  try {
+    if (isHostedMode()) {
+      const payload = await loadHostedFile('fb-page-id-reports', name);
+      currentEmailsData = payload.data;
+      currentEmailsFile = name;
+      currentEmailsFileMeta = payload.file || payload.meta;
+      document.getElementById('emailsLibrary').style.display = 'none';
+      document.getElementById('emailsDetail').style.display = 'block';
+      document.getElementById('emailsDetailName').textContent = name;
+      renderEmailsTable(currentEmailsData, name);
+      return;
+    }
+    const r = await fetch('/api/emails/file/' + encodeURIComponent(name));
+    currentEmailsData = await readJsonResponse(r, 'Open FB Page ID file');
+    currentEmailsFile = name;
+    document.getElementById('emailsLibrary').style.display = 'none';
+    document.getElementById('emailsDetail').style.display = 'block';
+    document.getElementById('emailsDetailName').textContent = name;
+    renderEmailsTable(currentEmailsData, name);
+  } catch {
+    scroll.innerHTML = 'Failed to load file content.';
+  }
+}
+
+function closeEmailsDetail() {
+  document.getElementById('emailsDetail').style.display = 'none';
+  document.getElementById('emailsLibrary').style.display = 'block';
+  currentEmailsFile = null;
+  currentEmailsFileMeta = null;
+  currentEmailsData = [];
+}
+
+function renderEmailsTable(items, filename) {
+  const meta = document.getElementById('emailsMeta');
+  if (meta) meta.textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
+  const scroll = document.getElementById('emailsTableScroll');
+  
+  if (!items.length) {
+    scroll.innerHTML = 'No data found in file.';
+    return;
+  }
+
+  const rows = items.map((item, i) => `
+      <tr class="row-enter" style="animation-delay:${i*12}ms">
+        <td class="col-num">${i+1}</td>
+        <td class="col-name">${esc((item.names || []).join(', ') || '—')}</td>
+        <td class="col-website">${linkCell(item.website || (item.websites || [])[0], 'Site')}</td>
+        <td class="col-website">${linkCell(item.facebook_url, 'FB')}</td>
+        <td style="font-family:var(--mono)">${esc(item.facebook_page_id || '—')}</td>
+        <td>${esc(item.extraction_source || '—')}</td>
+        <td style="color:${item.status === 'found' ? 'var(--green)' : 'var(--danger)'}">${esc(item.status || '—')}</td>
+        <td style="color:var(--muted);font-size:.78rem">${esc(item.error || '—')}</td>
+        <td style="color:var(--muted);font-size:.78rem">${esc(item.scraped_at ? new Date(item.scraped_at).toLocaleString() : '—')}</td>
+      </tr>
+  `).join('');
+
+  scroll.innerHTML = `
+      <table class="crm-table">
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th class="col-name">Names</th>
+            <th class="col-website">Website</th>
+            <th class="col-website">Facebook URL</th>
+            <th>Page ID</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Error</th>
+            <th>Scraped At</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+  `;
+}
+
+function emailsToCSV(items) {
+  if (!items.length) return '';
+  const H = ['Names', 'Website', 'Websites', 'Facebook URL', 'Page ID', 'Source', 'Status', 'Error', 'Scraped At'];
+  const rows = items.map(item => [
+    (item.names || []).join(' | '),
+    item.website,
+    (item.websites || []).join(' | '),
+    item.facebook_url,
+    item.facebook_page_id,
+    item.extraction_source,
+    item.status,
+    item.error,
+    item.scraped_at
+  ].map(v => `"${String(v || '').replace(/"/g,'""')}"`).join(','));
+  return [H.join(','), ...rows].join('\n');
+}
+
+function exportEmailsFile() {
+  if (!currentEmailsData.length || !currentEmailsFile) return;
+  const base = currentEmailsFile.replace(/\.json$/i, '');
+  downloadCSV(emailsToCSV(currentEmailsData), `${base}.csv`);
+}
+
+async function clearEmailsFile() {
+  if (!currentEmailsFile || !confirm(`Delete "${currentEmailsFile}"?`)) return;
+  try {
+    if (isHostedMode()) {
+      await hostedApi.deleteFile(currentEmailsFileMeta.id);
+      showToast('File deleted.');
+      closeEmailsDetail();
+      loadEmailsList();
+      return;
+    }
+    await fetch('/api/emails/file/' + encodeURIComponent(currentEmailsFile), { method:'DELETE' });
+    showToast('File deleted.');
+    closeEmailsDetail();
+    loadEmailsList();
+  } catch { showToast('Delete failed.'); }
 }

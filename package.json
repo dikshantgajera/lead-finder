@@ -1,16 +1,25 @@
 {
   "name": "lead-finder",
   "version": "1.0.0",
-  "description": "AI-powered lead finder portal with Targetron scraping agent",
+  "description": "Lead finder portal with Targetron scraping agent",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test"
+    "check": "node --check server.js && node --check public/app.js",
+    "fb-ad-status": "node scripts/check-fb-page-ads.js",
+    "test": "node --test tests/*.test.mts",
+    "worker:dev": "npx wrangler dev",
+    "worker:deploy": "npx wrangler deploy",
+    "hosted:run-job": "node scripts/hosted/run-job.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
+    "express": "^4.18.2",
     "playwright": "^1.44.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "wrangler": "^4.90.0"
   }
 }
