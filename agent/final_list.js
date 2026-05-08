@@ -104,6 +104,7 @@ function adsFoundCount(ads) {
 
 function toFinalCompany(lead, adsStatus, ads = {}) {
   const socials = getSocialLinks(lead);
+  const facebookPageId = firstValue(lead.facebook_page_id, ads.facebook_page_id, ads.matched_page_id);
   return {
     name: leadName(lead),
     phone: leadPhone(lead),
@@ -112,8 +113,10 @@ function toFinalCompany(lead, adsStatus, ads = {}) {
     website: leadWebsite(lead),
     facebook_url: socials.facebook_url,
     instagram_url: socials.instagram_url,
+    ...(facebookPageId ? { facebook_page_id: facebookPageId } : {}),
     ads_status: adsStatus,
     ads_found_count: adsFoundCount(ads),
+    ...(ads.ads_library_url ? { ads_library_url: ads.ads_library_url } : {}),
     ...(ads.matched_page_name ? { matched_page_name: ads.matched_page_name } : {}),
     ...(ads.matched_page_id ? { matched_page_id: ads.matched_page_id } : {}),
   };
@@ -145,6 +148,16 @@ function tokenOverlap(left, right) {
 
 function categoryTokens(lead) {
   return new Set(normalizeTokens(firstValue(lead.category, lead.type, lead.business_category, lead.name)));
+}
+
+function businessCategoryKey(lead) {
+  return normalizeTokens(leadCategory(lead)).sort().join('|');
+}
+
+function sameBusinessCategory(left, right) {
+  const leftKey = businessCategoryKey(left);
+  const rightKey = businessCategoryKey(right);
+  return Boolean(leftKey && rightKey && leftKey === rightKey);
 }
 
 function companyKey(lead) {
@@ -231,9 +244,10 @@ function pickCompetitors(target, leads, adsByIndex, maxCompetitors = 2, options 
     .map((lead, index) => ({ lead, index }))
     .filter(item => item.index !== target.index)
     .filter(item => companyKey(item.lead) !== targetKey)
+    .filter(item => sameBusinessCategory(target.lead, item.lead))
     .filter(item => {
       const socials = getSocialLinks(item.lead);
-      if (!socials.facebook_url && !socials.instagram_url) return false;
+      if (!socials.facebook_url && !socials.instagram_url && !clean(item.lead.facebook_page_id)) return false;
       const ads = adsByIndex.get(item.index) || {};
       if (ads.reason === 'missing_social_profiles' || ads.ads_status === 'skipped') return false;
       if (ads.ads_status === 'running_ads') return true;
@@ -501,5 +515,6 @@ module.exports = {
   buildIdentity,
   findAdsWorkflow,
   pickCompetitors,
+  sameBusinessCategory,
   toFinalCompany,
 };

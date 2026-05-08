@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const { pickCompetitors } = require('../agent/final_list');
 
 const ROOT = path.resolve(__dirname, '..');
 const CRM_DIR = path.join(ROOT, 'data', 'crm');
@@ -99,6 +100,10 @@ function getFacebookUrl(lead) {
   return links.find(url => /(^|\/\/|\.)(facebook|fb)\.com/i.test(url)) || '';
 }
 
+function leadCategory(lead) {
+  return firstValue(lead.business_category, lead.category, lead.type);
+}
+
 function buildAdsLibraryUrl(id, country = 'ALL') {
   const searchUrl = new URL('https://www.facebook.com/ads/library/');
   searchUrl.searchParams.set('active_status', 'active');
@@ -171,6 +176,7 @@ function leadRecordBase(lead, sourceFile, index, country, checkedAt) {
     source_index: index,
     name: firstValue(lead.name, lead.company, lead.business_name, 'Unknown Company'),
     phone: firstValue(lead.phone_full, lead.phone_google_maps, lead.phone_google_profile, lead.phone_original, lead.phone),
+    category: leadCategory(lead),
     full_address: firstValue(lead.address_full, lead.full_address, lead.address),
     website: firstValue(lead.website_full, lead.website),
     facebook_url: getFacebookUrl(lead),
@@ -185,6 +191,7 @@ function formatOutputRecord(base, status) {
     company: {
       name: base.name,
       phone: base.phone,
+      category: base.category,
       full_address: base.full_address,
       website: base.website,
       facebook_url: base.facebook_url,
@@ -217,10 +224,66 @@ function statusFromRecord(record) {
     ads_status: record.ads_status,
     running_ads: record.running_ads,
     ads_found_count: record.ads_found_count,
+    ...(record.ads_library_url ? { ads_library_url: record.ads_library_url } : {}),
+    ...(record.facebook_page_id ? { facebook_page_id: record.facebook_page_id } : {}),
+    ...(record.country ? { country: record.country } : {}),
     ...(record.evidence ? { evidence: record.evidence } : {}),
     ...(record.error ? { error: record.error } : {}),
     ...(Array.isArray(record.warnings) && record.warnings[0] ? { warning: record.warnings[0] } : {}),
   };
+}
+
+function usageKey(competitor) {
+  return [
+    competitor.name,
+    competitor.phone,
+    competitor.website,
+    competitor.facebook_url,
+    competitor.instagram_url,
+  ].map(value => clean(value).toLowerCase()).filter(Boolean).join('|');
+}
+
+function buildFinalListWithCompetitors(leads, adResults, options = {}) {
+  const maxCompetitors = Number(options.maxCompetitors || 2) || 2;
+  const adsByIndex = new Map();
+  for (const record of adResults) {
+    if (!Number.isInteger(record?.source_index)) continue;
+    adsByIndex.set(record.source_index, statusFromRecord(record));
+  }
+
+  const competitorUsage = new Map();
+  return adResults
+    .filter(record => record.ads_status === 'not_running_ads')
+    .map(record => {
+      const index = record.source_index;
+      const lead = leads[index] || {};
+      const competitors = pickCompetitors({ lead, index }, leads, adsByIndex, maxCompetitors, {
+        competitorUsage,
+      });
+      for (const competitor of competitors) {
+        const key = usageKey(competitor);
+        competitorUsage.set(key, (competitorUsage.get(key) || 0) + 1);
+      }
+
+      const competitorWarning = competitors.length < maxCompetitors
+        ? `Only ${competitors.length} running-ad competitors found for this company.`
+        : '';
+      const warnings = [
+        ...(Array.isArray(record.warnings) ? record.warnings : []),
+        ...(competitorWarning ? [competitorWarning] : []),
+      ];
+
+      return {
+        ...record,
+        company: {
+          ...(record.company || {}),
+          category: leadCategory(lead) || record.company?.category || '',
+        },
+        competitors,
+        reason: 'not_running_ads',
+        ...(warnings.length ? { warnings } : {}),
+      };
+    });
 }
 
 async function checkLead(lead, sourceFile, index, country, options = {}) {
@@ -333,10 +396,13 @@ async function run(options) {
     `fb-ad-status-${path.basename(sourceFile, '.json')}-${options.country.toLowerCase()}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
   );
   const outputPath = path.isAbsolute(outputFile) ? outputFile : path.join(ROOT, outputFile);
+  const finalList = buildFinalListWithCompetitors(leads, results, {
+    maxCompetitors: options.maxCompetitors || 2,
+  });
 
   if (!options.dryRun) {
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
+    fs.writeFileSync(outputPath, JSON.stringify(finalList, null, 2));
   }
 
   return {
@@ -346,7 +412,7 @@ async function run(options) {
     checked: results.length,
     uniquePageIdsChecked: statusByPageId.size,
     skipped: Math.max(0, scopeCount - results.length),
-    saved: results.length,
+    saved: finalList.length,
     runningAds: results.filter(item => item.ads_status === 'running_ads').length,
     notRunningAds: results.filter(item => item.ads_status === 'not_running_ads').length,
     unknown: results.filter(item => item.ads_status === 'unknown').length,
@@ -360,7 +426,8 @@ async function run(options) {
       })),
     skippedLeads,
     progressMessages,
-    results,
+    results: finalList,
+    adResults: results,
   };
 }
 
@@ -385,6 +452,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildFinalListWithCompetitors,
   buildAdsLibraryUrl,
   parseAdsLibraryContent,
   run,

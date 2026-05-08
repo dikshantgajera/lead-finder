@@ -1448,7 +1448,7 @@ async function findAdsForCurrentCrm() {
           return {
             success: true,
             checked: summary.checked || 0,
-            saved: summary.checked || 0,
+            saved: summary.saved || 0,
             runningAds: summary.running_ads || 0,
             notRunningAds: summary.not_running_ads || 0,
             unknown: summary.unknown || 0,

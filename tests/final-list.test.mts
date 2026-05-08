@@ -163,6 +163,34 @@ test("Find Ads chooses only two nearby competitors from the same address area", 
   assert.equal(noAds.competitors.some((competitor: any) => competitor.name === "Far Cafe"), false);
 });
 
+test("competitors must be running ads in the same business category", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "find-ads-"));
+  const crmDir = path.join(root, "crm");
+  const finalListPath = path.join(root, "final-list.json");
+  await import("node:fs/promises").then(fs => fs.mkdir(crmDir, { recursive: true }));
+  const sourceFile = writeCrmFile(crmDir, [
+    baseLeads[0],
+    { ...baseLeads[1], category: "Salon", name: "Running Ads Salon" },
+    baseLeads[3],
+  ]);
+
+  const result = await findAdsWorkflow({
+    sourceFile,
+    crmDir,
+    finalListPath,
+    throttleMs: 0,
+    adsChecker: async ({ lead }: { lead: { name: string } }) => ({
+      ads_status: lead.name === "No Ads Cafe" ? "not_running_ads" : "running_ads",
+      activeAdsCount: 1,
+      warnings: [],
+    }),
+  });
+
+  const noAds = result.finalList.find((item: any) => item.company.name === "No Ads Cafe");
+  assert.deepEqual(noAds.competitors.map((competitor: any) => competitor.name), ["Nearby Cafe"]);
+  assert.equal(noAds.competitors.some((competitor: any) => competitor.name === "Running Ads Salon"), false);
+});
+
 test("not-running lead with 3 running competitors returns the top 2 running competitors", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "find-ads-"));
   const crmDir = path.join(root, "crm");

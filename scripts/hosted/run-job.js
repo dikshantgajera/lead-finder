@@ -230,6 +230,7 @@ async function runFindAds(job) {
     summary: {
       file_name: file.name,
       checked: result.checked,
+      saved: result.saved,
       running_ads: result.runningAds,
       not_running_ads: result.notRunningAds,
       unknown: result.unknown,

@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const {
+  buildFinalListWithCompetitors,
   buildAdsLibraryUrl,
   parseAdsLibraryContent,
 } = require("../scripts/check-fb-page-ads.js");
@@ -52,4 +53,56 @@ test("parseAdsLibraryContent stores unclassified loaded pages as not running", (
   assert.equal(parsed.running_ads, false);
   assert.equal(parsed.ads_found_count, 0);
   assert.match(parsed.warning, /No active ad result count/);
+});
+
+test("saved ad-status final list attaches two running competitors from the same category", () => {
+  const leads = [
+    {
+      name: "No Ads Cafe",
+      category: "Cafe",
+      phone: "111",
+      address_full: "12 Market Road, Indiranagar, Bengaluru, Karnataka 560038, India",
+      website: "https://noads.example",
+      facebook_page_id: "100",
+    },
+    {
+      name: "Running Cafe One",
+      category: "Cafe",
+      phone: "222",
+      address_full: "18 Market Road, Indiranagar, Bengaluru, Karnataka 560038, India",
+      website: "https://running-one.example",
+      facebook_page_id: "200",
+    },
+    {
+      name: "Running Salon",
+      category: "Salon",
+      phone: "333",
+      address_full: "16 Market Road, Indiranagar, Bengaluru, Karnataka 560038, India",
+      website: "https://running-salon.example",
+      facebook_page_id: "300",
+    },
+    {
+      name: "Running Cafe Two",
+      category: "Cafe",
+      phone: "444",
+      address_full: "20 Market Road, Indiranagar, Bengaluru, Karnataka 560038, India",
+      website: "https://running-two.example",
+      facebook_page_id: "400",
+    },
+  ];
+  const adResults = [
+    { source_index: 0, company: { name: "No Ads Cafe" }, ads_status: "not_running_ads", running_ads: false, ads_found_count: 0 },
+    { source_index: 1, company: { name: "Running Cafe One" }, ads_status: "running_ads", running_ads: true, ads_found_count: 5 },
+    { source_index: 2, company: { name: "Running Salon" }, ads_status: "running_ads", running_ads: true, ads_found_count: 8 },
+    { source_index: 3, company: { name: "Running Cafe Two" }, ads_status: "running_ads", running_ads: true, ads_found_count: 3 },
+  ];
+
+  const finalList = buildFinalListWithCompetitors(leads, adResults);
+
+  assert.equal(finalList.length, 1);
+  assert.deepEqual(finalList[0].competitors.map((competitor: any) => competitor.name), [
+    "Running Cafe One",
+    "Running Cafe Two",
+  ]);
+  assert.equal(finalList[0].competitors.some((competitor: any) => competitor.name === "Running Salon"), false);
 });
