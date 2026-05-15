@@ -91,17 +91,19 @@ async function extractBusinessCards(page) {
       // Extract rating + review count from card text
       let rating = 0;
       let reviewCount = 0;
+      const containerText = (card.parentElement?.textContent || card.textContent || '');
 
       // Pattern 1: "4.7 ★★★★★ 225 Google reviews" or "4.7 (225)"
-      const ratingReviewMatch = cardText.match(/(\d+\.\d)\s*[★☆]*\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      const ratingReviewMatch = containerText.match(/(\d+\.\d)\s*[★☆]*\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
       if (ratingReviewMatch) {
         rating = parseFloat(ratingReviewMatch[1]);
         reviewCount = parseInt(ratingReviewMatch[2].replace(/,/g, ''), 10);
       }
 
-      // Pattern 2: aria-label on star element
+      // Pattern 2: aria-label on star element (within card or its parent)
       if (!rating || !reviewCount) {
-        const starEl = card.querySelector('[aria-label*="star"], [aria-label*="rated"]');
+        const scope = card.parentElement || card;
+        const starEl = scope.querySelector('[aria-label*="star"], [aria-label*="stars"], [aria-label*="rated"]');
         if (starEl) {
           const label = starEl.getAttribute('aria-label') || '';
           const rM = label.match(/(\d+\.?\d*)\s*(?:stars?|rated)/i);
@@ -304,37 +306,73 @@ async function getBusinessDetails(page, cardIndex) {
     } catch (e) {}
   }
 
-  // Rating + Reviews + Photos (scoped to detail panel via evaluate)
-  const extras = await page.evaluate(() => {
-    const panel = document.querySelector('[role="dialog"], [data-item-id="overview"]');
-    const ctx = panel || document;
-    const text = ctx.textContent || '';
+  // Rating + Reviews — use Playwright locator for aria-label, fall back to scoped evaluate
+  let rating = 0;
+  let reviewCount = 0;
 
-    let rating = 0;
-    const starBtn = ctx.querySelector('button[aria-label*="star"], [aria-label*="stars"]');
-    if (starBtn) {
-      const label = starBtn.getAttribute('aria-label') || '';
-      const rm = label.match(/(\d+\.\d)/);
+  try {
+    const starEl = page.locator('[aria-label*="star"], [aria-label*="stars"], [aria-label*="rated"]').first();
+    if (await starEl.isVisible().catch(() => false)) {
+      const label = await starEl.getAttribute('aria-label').catch(() => '') || '';
+      const rm = label.match(/(\d+\.?\d*)\s*(?:stars?|rated|out of)/i);
       if (rm) { const v = parseFloat(rm[1]); if (v >= 1 && v <= 5) rating = v; }
+      const rvm = label.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      if (rvm) reviewCount = parseInt(rvm[1].replace(/,/g, ''), 10);
     }
-    if (!rating) {
-      const rm = text.match(/(\d+\.\d)\s*(?:stars?|rated|out of)/i);
-      if (rm) { const v = parseFloat(rm[1]); if (v >= 1 && v <= 5) rating = v; }
-    }
+  } catch (e) {}
 
-    let reviewCount = 0;
-    const rvm = text.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
-    if (rvm) reviewCount = parseInt(rvm[1].replace(/,/g, ''), 10);
+  // Fallback: scoped evaluate on detail panel
+  if (!rating || !reviewCount) {
+    const extras = await page.evaluate(() => {
+      const ctx = document.querySelector('[role="dialog"], [data-item-id="overview"]') || document;
+      const text = ctx.textContent || '';
 
-    const photosCount = parseInt(text.match(/(\d+)\s*photos?/i)?.[1] || '0', 10) || 0;
+      let r = 0, rv = 0;
 
-    const respondsToReviews = text.toLowerCase().includes('owner') &&
-      (text.toLowerCase().includes('response from') || text.toLowerCase().includes('replied'));
+      // Pattern: "4.7 ★★★★★ 225 reviews" (star chars between rating and count)
+      const combined = text.match(/(\d+\.\d)\s*[★☆\s]*\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      if (combined) { r = parseFloat(combined[1]); rv = parseInt(combined[2].replace(/,/g, ''), 10); }
 
-    return { rating, reviewCount, photosCount, respondsToReviews };
-  }).catch(() => ({}));
+      // Pattern: "4.7 stars" or "Rated 4.7"
+      if (!r) {
+        const rm = text.match(/(\d+\.\d)\s*(?:stars?|rated|out of)/i);
+        if (rm) { const v = parseFloat(rm[1]); if (v >= 1 && v <= 5) r = v; }
+      }
 
-  return { ...result, ...extras };
+      // Pattern: standalone "4.7" near rating keywords
+      if (!r) {
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (/stars?|reviews?|rated|out of 5/i.test(line)) {
+            const nm = line.match(/(\d+\.\d)/);
+            if (nm) { const v = parseFloat(nm[1]); if (v >= 1 && v <= 5) { r = v; break; } }
+          }
+        }
+      }
+
+      // Review count
+      if (!rv) {
+        const rvm = text.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
+        if (rvm) rv = parseInt(rvm[1].replace(/,/g, ''), 10);
+      }
+
+      const photosCount = parseInt(text.match(/(\d+)\s*photos?/i)?.[1] || '0', 10) || 0;
+      const respondsToReviews = text.toLowerCase().includes('owner') &&
+        (text.toLowerCase().includes('response from') || text.toLowerCase().includes('replied'));
+
+      return { rating: r, reviewCount: rv, photosCount, respondsToReviews };
+    }).catch(() => ({}));
+
+    if (extras.rating) rating = extras.rating;
+    if (extras.reviewCount) reviewCount = extras.reviewCount;
+    result.photosCount = extras.photosCount || 0;
+    result.respondsToReviews = extras.respondsToReviews || false;
+  }
+
+  result.rating = rating;
+  result.reviewCount = reviewCount;
+
+  return result;
 }
 
 async function scanForGaps({ niche, city, maxResults, reviewThreshold, onProgress }) {
