@@ -210,7 +210,6 @@ async function getBusinessDetails(page, cardIndex) {
     } catch (e) {}
   }
   if (!clickable) {
-    // Last resort: click via DOM evaluate
     try {
       await page.evaluate((idx) => {
         const cards = document.querySelectorAll('a.hfpxzc, .Nv2PK, div[role="article"]');
@@ -233,143 +232,109 @@ async function getBusinessDetails(page, cardIndex) {
   }
 
   try {
-    await page.waitForSelector('[role="dialog"], [data-item-id="overview"], div[jsaction*="mouseover:pane"]', { timeout: 8000 });
+    await page.waitForSelector('[data-item-id="authority"], [data-item-id="address"], [data-item-id^="phone"]', { timeout: 8000 });
   } catch (e) {}
-  await sleep(2000);
+  await sleep(1000);
 
-  const details = await page.evaluate(() => {
-    const text = document.body.innerText || '';
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // Extract fields using Playwright locators (same pattern as enricher.js)
+  const result = { website: '', hours: '', phone: '', address: '', rating: 0, reviewCount: 0, photosCount: 0, respondsToReviews: false };
 
-    // Find where the selected business's detail section starts
-    // The detail panel typically appears after a click and has concentrated data
-    // We search the full body text for relevant patterns
-
-    // Rating: look for "X.X" near rating keywords
-    let rating = 0;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (/stars?|reviews?|rated|out of 5/i.test(line)) {
-        const m = line.match(/(\d+\.\d)/);
-        if (m) {
-          const val = parseFloat(m[1]);
-          if (val >= 1 && val <= 5) { rating = val; break; }
+  // Website
+  for (const sel of ['a[data-item-id="authority"]', 'a[aria-label*="Website"]', 'a[aria-label*="ebsite"]', 'a.rogA2c.ITvuef', '.rogA2c.ITvuef a']) {
+    try {
+      const el = page.locator(sel).first();
+      if (await el.isVisible().catch(() => false)) {
+        const href = await el.evaluate(node => {
+          const link = node.closest('a') || node.querySelector('a');
+          return node.href || node.getAttribute('href') || link?.href || '';
+        }).catch(() => '');
+        if (href && !href.includes('google.com') && !href.includes('maps.google') && href.startsWith('http')) {
+          result.website = href;
+          break;
         }
       }
+    } catch (e) {}
+  }
+
+  // Address
+  for (const sel of ['[data-item-id="address"]', 'button[data-item-id="address"]', '[aria-label*="Address"]']) {
+    try {
+      const el = page.locator(sel).first();
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.evaluate(node => {
+          const t = node.getAttribute('aria-label') || node.innerText || node.textContent || '';
+          return t.replace(/\s+/g, ' ').trim();
+        }).catch(() => '');
+        if (text && text.length > 5) {
+          result.address = text.replace(/^Address:\s*/i, '');
+          break;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Phone
+  for (const sel of ['[data-item-id^="phone"]', 'button[data-item-id*="phone"]', 'a[href^="tel:"]']) {
+    try {
+      const el = page.locator(sel).first();
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.evaluate(node => {
+          const t = node.innerText || node.textContent || node.getAttribute('href') || '';
+          return t.replace(/^tel:/i, '').replace(/\s+/g, ' ').trim();
+        }).catch(() => '');
+        if (text && text.replace(/\D/g, '').length >= 7) {
+          result.phone = text;
+          break;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Hours
+  for (const sel of ['[data-item-id="hours"]', 'button[data-item-id="hours"]']) {
+    try {
+      const el = page.locator(sel).first();
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.evaluate(node => {
+          const t = node.innerText || node.textContent || '';
+          return t.replace(/\s+/g, ' ').trim();
+        }).catch(() => '');
+        if (text && text.length > 5) { result.hours = text; break; }
+      }
+    } catch (e) {}
+  }
+
+  // Rating + Reviews + Photos (scoped to detail panel via evaluate)
+  const extras = await page.evaluate(() => {
+    const panel = document.querySelector('[role="dialog"], [data-item-id="overview"]');
+    const ctx = panel || document;
+    const text = ctx.textContent || '';
+
+    let rating = 0;
+    const starBtn = ctx.querySelector('button[aria-label*="star"], [aria-label*="stars"]');
+    if (starBtn) {
+      const label = starBtn.getAttribute('aria-label') || '';
+      const rm = label.match(/(\d+\.\d)/);
+      if (rm) { const v = parseFloat(rm[1]); if (v >= 1 && v <= 5) rating = v; }
     }
     if (!rating) {
-      const allNums = text.match(/(\d+\.\d)/g);
-      if (allNums) {
-        for (const n of allNums) {
-          const val = parseFloat(n);
-          if (val >= 1 && val <= 5) { rating = val; break; }
-        }
-      }
+      const rm = text.match(/(\d+\.\d)\s*(?:stars?|rated|out of)/i);
+      if (rm) { const v = parseFloat(rm[1]); if (v >= 1 && v <= 5) rating = v; }
     }
 
-    // Review count
     let reviewCount = 0;
-    const rvM = text.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
-    if (rvM) reviewCount = parseInt(rvM[1].replace(/,/g, ''), 10);
+    const rvm = text.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
+    if (rvm) reviewCount = parseInt(rvm[1].replace(/,/g, ''), 10);
 
-    // Phone — try tel: links first
-    let phone = '';
-    const telLinks = document.querySelectorAll('a[href^="tel:"]');
-    for (const a of telLinks) {
-      const fromHref = (a.getAttribute('href') || '').replace('tel:', '').trim();
-      const fromText = a.textContent?.trim() || '';
-      const num = fromText.replace(/\D/g, '').length >= 7 ? fromText : fromHref;
-      const digits = num.replace(/\D/g, '');
-      if (digits.length >= 7 && digits.length <= 15) { phone = num; break; }
-    }
-
-    // Try Google Maps-specific DOM patterns
-    if (!phone) {
-      const els = document.querySelectorAll('[data-phonenumber], [data-item-id*="phone"], [aria-label*="phone" i]');
-      for (const el of els) {
-        const num = el.getAttribute('data-phonenumber') || el.textContent?.trim() || '';
-        const digits = num.replace(/\D/g, '');
-        if (digits.length >= 7 && digits.length <= 15) { phone = num; break; }
-      }
-    }
-
-    // Fallback: broad text pattern
-    if (!phone) {
-      const gPattern = /(\+?[\d\s\-().]{7,20})/g;
-      const allM = text.matchAll(gPattern);
-      for (const m of allM) {
-        const cleaned = m[1].replace(/\D/g, '');
-        const first4 = parseInt(cleaned.substring(0, 4), 10);
-        if (cleaned.length >= 7 && cleaned.length <= 15 && !(first4 >= 1900 && first4 <= 2099 && cleaned.length <= 8)) {
-          phone = m[1].trim();
-          break;
-        }
-      }
-    }
-
-    // Fallback to text patterns — global, handles any country format
-    if (!phone) {
-      const globalPattern = /(\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{3,10})/g;
-      const allMatches = text.matchAll(globalPattern);
-      for (const m of allMatches) {
-        const cleaned = m[1].replace(/\D/g, '');
-        if (cleaned.length >= 7 && cleaned.length <= 15 && !/^\d{4}$/.test(cleaned)) {
-          phone = m[1].trim();
-          break;
-        }
-      }
-    }
-
-    // Address — look for common address patterns
-    let address = '';
-    const addrPatterns = [
-      /(\d+[\s,][A-Za-z\s,]+(?:Road|Rd|Street|St|Avenue|Ave|Lane|Ln|Nagar|Colony)[\s\S]{0,80}(?:,\s*[A-Za-z\s]+){1,3})/i,
-      /([A-Za-z\s]+(?:Road|Rd|Street|St|Nagar|Colony)[\s\S]{0,80}(?:,\s*[A-Za-z\s]+){1,3})/i,
-    ];
-    for (const p of addrPatterns) {
-      const m = text.match(p);
-      if (m) { address = m[1].trim().substring(0, 150); break; }
-    }
-
-    // Website — scope to detail panel only
-    let website = '';
-    const detailPanel = document.querySelector('[role="dialog"], [data-item-id="overview"], div[jsaction*="mouseover:pane"], [aria-label*="Details"], .rogA2c.ITvuef');
-    const ctx = detailPanel || document;
-
-    const websiteLinks = ctx.querySelectorAll('a.rogA2c.ITvuef, a[data-item-id="authority"], a[aria-label*="Website"], a[aria-label*="ebsite"]');
-
-    // Also search inside .rogA2c containers for links
-    const containerLinks = ctx.querySelectorAll('.rogA2c.ITvuef a');
-    for (const a of [...websiteLinks, ...containerLinks]) {
-      const href = a.href || a.getAttribute('href') || '';
-      if (href && !href.includes('google.com') && !href.includes('maps.google') && href.startsWith('http')) {
-        website = href;
-        break;
-      }
-    }
-    if (!website && detailPanel) {
-      const ctxText = detailPanel.textContent || '';
-      const wm = ctxText.match(/(https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s]*)?)/);
-      if (wm) website = wm[1];
-    }
-    // Do NOT fall back to full page text — too unreliable
-
-    // Hours
-    let hours = '';
-    const hm = text.match(/((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[\s\S]{0,200}(?:AM|PM|am|pm|Closed|Open))/i);
-    if (hm) hours = hm[1].trim().substring(0, 200);
-
-    // Photos
     const photosCount = parseInt(text.match(/(\d+)\s*photos?/i)?.[1] || '0', 10) || 0;
 
-    // Review responses
     const respondsToReviews = text.toLowerCase().includes('owner') &&
       (text.toLowerCase().includes('response from') || text.toLowerCase().includes('replied'));
 
-    return { website, hours, phone, address, rating, reviewCount, photosCount, respondsToReviews };
-  });
+    return { rating, reviewCount, photosCount, respondsToReviews };
+  }).catch(() => ({}));
 
-  return details;
+  return { ...result, ...extras };
 }
 
 async function scanForGaps({ niche, city, maxResults, reviewThreshold, onProgress }) {
