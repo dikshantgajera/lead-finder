@@ -170,7 +170,148 @@ Write the email now.`;
   throw error;
 }
 
+/**
+ * Generate a personalized Map Gap outreach message using a local AI model.
+ * 
+ * @param {Object} lead - The lead data object.
+ * @param {Object} audit - The audit result with gaps and score.
+ * @param {Object} options - Configuration options.
+ * @returns {Promise<string>} The generated outreach message.
+ */
+async function generateMapGapOutreach(lead, audit, options = {}) {
+  const config = { ...DEFAULT_CONFIG, ...options };
+  const { model } = config;
+  const baseUrl = normalizeBaseUrl(config.baseUrl);
+
+  const leadName = lead.name || 'your business';
+  const gapCount = audit.gapCount || 0;
+  const score = audit.percentage || 0;
+  const grade = audit.grade || 'F';
+
+  const gapDetails = (audit.gaps || []).slice(0, 3).map(g => {
+    return `- ${g.label}: ${g.detail}`;
+  }).join('\n');
+
+  const primaryGap = (audit.gaps || []).find(g => g.severity === 'critical');
+  const primaryGapLabel = primaryGap ? primaryGap.label : 'your Google Maps listing';
+
+  const systemPrompt = `You are an experienced local marketing consultant writing a short, personalized outreach message to a business owner.
+
+Rules:
+- Keep it under 100 words
+- Reference ONE specific problem you found on their Google Maps listing
+- Do NOT use placeholders like [Your Name] or [Company]
+- Be conversational, not salesy
+- Offer a free breakdown/audit with no strings attached
+- Do NOT mention pricing or packages
+- Write as if you're genuinely trying to help, not selling`;
+
+  const userPrompt = `Write a short outreach message to ${leadName}.
+
+Their Google Maps audit scored ${score}/100 (Grade: ${grade}).
+They have ${gapCount} identified gaps:
+
+${gapDetails}
+
+The biggest issue is: ${primaryGapLabel}
+
+Write a personalized message that references their specific situation. Offer to share a free breakdown of what's costing them customers. Keep it under 100 words.`;
+
+  const openAiUrls = [
+    `${baseUrl}/chat/completions`,
+    `${baseUrl}/v1/chat/completions`
+  ];
+  const nativeBaseUrl = baseUrl.endsWith('/v1') ? baseUrl.slice(0, -3) : baseUrl;
+  const completionUrls = [
+    `${baseUrl}/completions`,
+    `${baseUrl}/v1/completions`
+  ];
+  const llamaCppUrls = [
+    `${nativeBaseUrl}/completion`
+  ];
+
+  const failures = [];
+
+  for (const url of [...new Set(openAiUrls)]) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.8,
+          max_tokens: 250
+        })
+      });
+
+      const data = await parseJsonResponse(response);
+      const content = data?.choices?.[0]?.message?.content;
+      if (typeof content === 'string' && content.trim()) return content.trim();
+      failures.push(`${url} returned JSON without chat content`);
+    } catch (error) {
+      failures.push(`${url} -> ${error.message}`);
+    }
+  }
+
+  for (const url of [...new Set(completionUrls)]) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt: `${systemPrompt}\n\n${userPrompt}\n\nAssistant:`,
+          temperature: 0.8,
+          max_tokens: 250
+        })
+      });
+
+      const data = await parseJsonResponse(response);
+      const content = data?.choices?.[0]?.text;
+      if (typeof content === 'string' && content.trim()) return content.trim();
+      failures.push(`${url} returned JSON without completion text`);
+    } catch (error) {
+      failures.push(`${url} -> ${error.message}`);
+    }
+  }
+
+  for (const url of [...new Set(llamaCppUrls)]) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `${systemPrompt}\n\n${userPrompt}\n\nAssistant:`,
+          n_predict: 250,
+          temperature: 0.8
+        })
+      });
+
+      const data = await parseJsonResponse(response);
+      const content = data?.content;
+      if (typeof content === 'string' && content.trim()) return content.trim();
+      failures.push(`${url} returned JSON without llama.cpp content`);
+    } catch (error) {
+      failures.push(`${url} -> ${error.message}`);
+    }
+  }
+
+  const hint = [
+    `Unable to reach a compatible AI endpoint for base URL: ${baseUrl}.`,
+    'Use your actual llama.cpp server URL, usually either `http://HOST:PORT` or `http://HOST:PORT/v1`.',
+  ].join(' ');
+
+  const error = new Error(`${hint} Tried: ${failures.join(' | ')}`);
+  console.error('Error generating Map Gap outreach:', error);
+  throw error;
+}
+
 module.exports = {
   generateSalesPitch,
+  generateMapGapOutreach,
   DEFAULT_CONFIG
 };

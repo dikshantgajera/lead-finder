@@ -6,6 +6,10 @@ const { spawn } = require('child_process');
 const { scrapeLeads, discoverLeadPages } = require('./agent/scraper');
 const { enrichLeadsWithProgress, stopEnrichment } = require('./agent/enricher');
 const { run: checkFacebookPageAds } = require('./scripts/check-fb-page-ads');
+const { scanForGaps } = require('./agent/map-gap-scanner');
+const { auditBusiness, generateSummary } = require('./agent/map-gap-auditor');
+const { generateAuditPdf } = require('./agent/map-gap-pdf');
+const { generateMapGapOutreach } = require('./agent/ai_generator');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -16,9 +20,11 @@ const LEADS_DIR    = path.join(DATA_DIR, 'leads');
 const CRM_DIR      = path.join(DATA_DIR, 'crm');
 const EMAILS_DIR   = path.join(DATA_DIR, 'emails');
 const FINAL_LIST_DIR  = path.join(DATA_DIR, 'final-list');
+const MAP_GAP_DIR  = path.join(DATA_DIR, 'map-gap');
+const AUDITS_DIR   = path.join(DATA_DIR, 'audits');
 const LEGACY_FINAL_LIST_FILE = path.join(DATA_DIR, 'final-list.json');
 
-[DATA_DIR, LEADS_DIR, CRM_DIR, EMAILS_DIR, FINAL_LIST_DIR].forEach(dir => {
+[DATA_DIR, LEADS_DIR, CRM_DIR, EMAILS_DIR, FINAL_LIST_DIR, MAP_GAP_DIR, AUDITS_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -539,9 +545,126 @@ app.delete('/api/final-list', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Map Gap: scan Google Maps for gaps (SSE stream) ────────────
+app.post('/api/map-gap/scan/stream', async (req, res) => {
+  const { niche, city, maxResults = 50, reviewThreshold = 20 } = req.body || {};
+  if (!niche || !city) return res.status(400).json({ error: 'Missing niche or city' });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const send = (type, data) =>
+    res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+
+  try {
+    const results = await scanForGaps({
+      niche, city, maxResults, reviewThreshold,
+      onProgress: msg => send('progress', { message: msg }),
+    });
+
+    const audited = results.map(r => ({
+      ...r,
+      audit: auditBusiness(r, { reviewThreshold }),
+    }));
+
+    const summary = generateSummary(audited.map(r => r.audit));
+    const filename = `map-gap-${safeName(niche)}-${safeName(city)}-${new Date().toISOString().slice(0, 10)}.json`;
+    fs.writeFileSync(path.join(MAP_GAP_DIR, filename), JSON.stringify(audited, null, 2));
+
+    send('done', {
+      filename,
+      count: audited.length,
+      targets: audited.filter(r => r.isTarget).length,
+      summary,
+    });
+  } catch (err) {
+    send('error', { message: err.message });
+  } finally {
+    res.end();
+  }
+});
+
+// ── Map Gap: generate audit PDF ────────────────────────────────
+app.post('/api/map-gap/audit/pdf', async (req, res) => {
+  const { lead, audit, niche = '', city = '' } = req.body || {};
+  if (!lead || !audit) return res.status(400).json({ error: 'Missing lead or audit data' });
+
+  try {
+    const filename = `audit-${safeName(lead.name)}-${Date.now()}.pdf`;
+    const outputPath = path.join(AUDITS_DIR, filename);
+    await generateAuditPdf(audit, outputPath, { niche, city });
+    res.json({ success: true, filename, path: filename });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Map Gap: generate outreach message ─────────────────────────
+app.post('/api/map-gap/outreach', async (req, res) => {
+  const { lead, audit } = req.body || {};
+  if (!lead || !audit) return res.status(400).json({ error: 'Missing lead or audit data' });
+
+  try {
+    const message = await generateMapGapOutreach(lead, audit);
+    res.json({ success: true, message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Map Gap: result files ──────────────────────────────────────
+app.get('/api/map-gap/files', (req, res) => {
+  try { res.json(readDirMeta(MAP_GAP_DIR)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/map-gap/file/:name', (req, res) => {
+  const fp = path.join(MAP_GAP_DIR, req.params.name);
+  if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Not found' });
+  try { res.json(JSON.parse(fs.readFileSync(fp, 'utf8'))); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/map-gap/file/:name', (req, res) => {
+  const fp = path.join(MAP_GAP_DIR, req.params.name);
+  if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Not found' });
+  try { fs.unlinkSync(fp); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Map Gap: audit PDF files ───────────────────────────────────
+app.get('/api/map-gap/audits', (req, res) => {
+  try {
+    const files = fs.readdirSync(AUDITS_DIR)
+      .filter(f => f.endsWith('.pdf'))
+      .map(filename => {
+        const fp = path.join(AUDITS_DIR, filename);
+        const stat = fs.statSync(fp);
+        return { name: filename, size: stat.size, createdAt: stat.birthtime.toISOString() };
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json(files);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/map-gap/audits/:name', (req, res) => {
+  const fp = path.join(AUDITS_DIR, req.params.name);
+  if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Not found' });
+  res.sendFile(fp);
+});
+
+app.delete('/api/map-gap/audits/:name', (req, res) => {
+  const fp = path.join(AUDITS_DIR, req.params.name);
+  if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Not found' });
+  try { fs.unlinkSync(fp); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Health ────────────────────────────────────────────────────
 app.get('/api/health', (req, res) =>
   res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.listen(PORT, () =>
-  console.log(`\n🎯 Lead Finder Portal → http://localhost:${PORT}\n`));
+  console.log(`\n🎯 Lead Finder Portal → http://0.0.0.0:${PORT}\n`));

@@ -531,6 +531,9 @@ function switchView(view) {
   if (view === 'final-list') {
     loadFinalList();
   }
+  if (view === 'map-gap') {
+    loadMapGapLibrary();
+  }
 }
 
 /* ════════════════════════════════════════════════
@@ -1871,6 +1874,454 @@ async function clearFinalList() {
     closeFinalListDetail();
     loadFinalList();
   } catch { showToast('Delete failed.'); }
+}
+
+/* ════════════════════════════════════════════════
+   MAP GAP
+════════════════════════════════════════════════ */
+let mgResults = [];
+let mgCurrentScan = null;
+let mgCurrentFilter = 'all';
+let mgSelectedLead = null;
+let mgSelectedAudit = null;
+
+async function startMapGapScan() {
+  const niche = document.getElementById('mgNiche').value.trim();
+  const city = document.getElementById('mgCity').value.trim();
+  const maxResults = parseInt(document.getElementById('mgMaxResults').value, 10) || 50;
+  const reviewThreshold = parseInt(document.getElementById('mgReviewThreshold').value, 10) || 20;
+
+  if (!niche || !city) {
+    showToast('Please enter both a niche and city.');
+    return;
+  }
+
+  const btn = document.getElementById('mgScanBtn');
+  const btnText = document.getElementById('mgScanBtnText');
+  btn.disabled = true;
+  btnText.textContent = 'Scanning…';
+  setAgentStatus('running', 'Map Gap Scanning');
+
+  const progressSection = document.getElementById('mgProgressSection');
+  const progressLog = document.getElementById('mgProgressLog');
+  const progressBar = document.getElementById('mgProgressBar');
+  const progressSub = document.getElementById('mgProgressSub');
+  progressSection.style.display = 'block';
+  progressLog.innerHTML = '';
+  progressBar.style.width = '0%';
+
+  document.getElementById('mgSummarySection').style.display = 'none';
+  document.getElementById('mgResultsSection').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/map-gap/scan/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ niche, city, maxResults, reviewThreshold }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let progressCount = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === 'progress') {
+            addLog(progressLog, event.message);
+            progressCount++;
+            progressBar.style.width = `${Math.min(progressCount * 2, 95)}%`;
+            progressSub.textContent = event.message;
+          } else if (event.type === 'done') {
+            progressBar.style.width = '100%';
+            mgResults = [];
+            mgCurrentScan = event;
+
+            try {
+              const fileRes = await fetch('/api/map-gap/file/' + encodeURIComponent(event.filename));
+              mgResults = await fileRes.json();
+            } catch {}
+
+            renderMapGapSummary(event.summary);
+            renderMapGapResults(mgResults);
+            progressSub.textContent = `Done — ${event.count} businesses, ${event.targets} targets.`;
+          } else if (event.type === 'error') {
+            showToast(event.message);
+            progressSub.textContent = 'Error: ' + event.message;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    showToast('Scan failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = 'Scan for Gaps';
+    setAgentStatus('idle', 'Agent Idle');
+    loadMapGapLibrary();
+  }
+}
+
+function renderMapGapSummary(summary) {
+  document.getElementById('mgStatTotal').textContent = summary.totalBusinesses;
+  document.getElementById('mgStatTargets').textContent = summary.targetCount;
+  document.getElementById('mgStatAvgScore').textContent = summary.averageScore;
+  document.getElementById('mgStatPct').textContent = summary.targetPercentage + '%';
+  document.getElementById('mgSummarySection').style.display = 'block';
+}
+
+function renderMapGapResults(results) {
+  const body = document.getElementById('mgResultsBody');
+  const filtered = filterMapGapResults(results);
+
+  document.getElementById('mgResultsMeta').textContent = `${filtered.length} businesses`;
+  document.getElementById('mgResultsSection').style.display = 'block';
+
+  body.innerHTML = filtered.map((r, i) => {
+    const a = r.audit || {};
+    const gaps = (r.gaps || []).map(g => {
+      const labels = { low_reviews: 'Reviews', no_website: 'Website', no_review_responses: 'Responses', no_hours: 'Hours', no_photos: 'Photos', no_phone: 'Phone' };
+      return `<span class="mg-gap-badge mg-gap-${g.startsWith('no') ? 'critical' : 'warning'}">${labels[g] || g}</span>`;
+    }).join('');
+
+    const gradeColor = a.grade === 'A' ? '#22c55e' : a.grade === 'B' ? '#84cc16' : a.grade === 'C' ? '#f59e0b' : a.grade === 'D' ? '#f97316' : '#ef4444';
+
+    return `<tr>
+      <td>${i + 1}</td>
+      <td><strong>${esc(r.name)}</strong></td>
+      <td class="col-truncate">${esc(r.address || '—')}</td>
+      <td>${esc(r.phone || '—')}</td>
+      <td class="col-truncate">${r.hasWebsite ? esc(r.website) : '<span style="color:var(--danger)">Missing</span>'}</td>
+      <td>${r.rating ? r.rating + ' ★' : '—'}</td>
+      <td>${r.reviewCount || 0}</td>
+      <td><strong style="color:${gradeColor}">${a.percentage || 0}</strong></td>
+      <td><span class="mg-grade-badge" style="background:${gradeColor}22;color:${gradeColor}">${a.grade || 'F'}</span></td>
+      <td>${gaps || '<span style="color:var(--muted)">None</span>'}</td>
+      <td>
+        <div class="mg-actions">
+          <button class="btn-sm btn-ghost" onclick="showMgAudit(${i})" title="View Audit">Audit</button>
+          <button class="btn-sm btn-ghost" onclick="generateMgOutreach(${i})" title="Generate Outreach">Outreach</button>
+          <button class="btn-sm btn-ghost" onclick="copyMgToCrm(${i})" title="Copy to CRM">→ CRM</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const meta = document.getElementById('mgFilterMeta');
+  if (meta) meta.textContent = `${filtered.length} of ${results.length}`;
+}
+
+function filterMapGapResults(results) {
+  if (mgCurrentFilter === 'all') return results;
+  if (mgCurrentFilter === 'targets') return results.filter(r => r.isTarget);
+  return results.filter(r => (r.gaps || []).includes(mgCurrentFilter));
+}
+
+function filterMapGapTable() {
+  const query = document.getElementById('mgFilterInput').value.toLowerCase();
+  if (!query) {
+    renderMapGapResults(mgResults);
+    return;
+  }
+  const filtered = mgResults.filter(r => {
+    const a = r.audit || {};
+    return (r.name || '').toLowerCase().includes(query) ||
+           (r.address || '').toLowerCase().includes(query) ||
+           (r.gaps || []).some(g => g.includes(query)) ||
+           String(a.percentage || '').includes(query);
+  });
+  renderMapGapResults(filtered);
+}
+
+function setMapGapFilter(filter, btn) {
+  mgCurrentFilter = filter;
+  document.querySelectorAll('#mgChipAll, #mgChipTargets, #mgChipNoWebsite, #mgChipLowReviews').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderMapGapResults(mgResults);
+}
+
+async function showMgAudit(index) {
+  const r = mgResults[index];
+  if (!r || !r.audit) return;
+
+  mgSelectedLead = r;
+  mgSelectedAudit = r.audit;
+
+  const a = r.audit;
+  document.getElementById('mgAuditTitle').textContent = `Audit: ${r.name}`;
+  document.getElementById('mgAuditSubtitle').textContent = `Score: ${a.percentage}/100 (Grade: ${a.grade})`;
+
+  const body = document.getElementById('mgAuditBody');
+  const gapRows = (a.gaps || []).map(g => `
+    <div class="mg-audit-gap mg-gap-${g.severity}">
+      <div class="mg-audit-gap-label">${g.label}</div>
+      <div class="mg-audit-gap-detail">${g.detail}</div>
+      <div class="mg-audit-gap-score">${g.score}/${g.maxScore}</div>
+    </div>
+  `).join('');
+
+  const strengthItems = (a.strengths || []).map(s => `<li>${esc(s)}</li>`).join('');
+
+  body.innerHTML = `
+    <div class="mg-audit-score-circle" style="text-align:center;margin-bottom:24px">
+      <div class="mg-audit-circle" style="width:100px;height:100px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;background:conic-gradient(${a.percentage >= 70 ? '#22c55e' : a.percentage >= 40 ? '#f59e0b' : '#ef4444'} ${a.percentage * 3.6}deg, #e2e8f0 0deg)">
+        <div style="width:80px;height:80px;border-radius:50%;background:var(--bg-card);display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:28px;font-weight:800;color:${a.percentage >= 70 ? '#22c55e' : a.percentage >= 40 ? '#f59e0b' : '#ef4444'}">${a.percentage}</div>
+          <div style="font-size:12px;color:var(--muted)">Grade: ${a.grade}</div>
+        </div>
+      </div>
+    </div>
+    <div class="mg-audit-details" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+      <div class="mg-audit-detail-card"><div style="font-size:11px;color:var(--muted)">Rating</div><div style="font-weight:600">${r.rating ? r.rating + ' ★' : 'N/A'}</div></div>
+      <div class="mg-audit-detail-card"><div style="font-size:11px;color:var(--muted)">Reviews</div><div style="font-weight:600">${a.reviewCount}</div></div>
+      <div class="mg-audit-detail-card"><div style="font-size:11px;color:var(--muted)">Website</div><div style="font-weight:600">${r.hasWebsite ? 'Linked' : 'Missing'}</div></div>
+    </div>
+    <h4 style="margin-bottom:8px">Score Breakdown</h4>
+    <div style="margin-bottom:20px">
+      ${mgScoreBar(a.scores.reviews, a.weights.reviews, 'Reviews')}
+      ${mgScoreBar(a.scores.website, a.weights.website, 'Website')}
+      ${mgScoreBar(a.scores.reviewResponses, a.weights.reviewResponses, 'Review Responses')}
+      ${mgScoreBar(a.scores.profileCompleteness, a.weights.profileCompleteness, 'Profile Completeness')}
+      ${mgScoreBar(a.scores.phoneReadiness, a.weights.phoneReadiness, 'Phone Readiness')}
+    </div>
+    <h4 style="margin-bottom:8px">Gaps (${a.gapCount})</h4>
+    <div style="margin-bottom:16px">${gapRows || '<p style="color:var(--muted)">No significant gaps found.</p>'}</div>
+    ${(a.strengths || []).length > 0 ? `<h4 style="margin-bottom:8px;color:#166534">Strengths</h4><ul style="padding-left:20px;color:#15803d;font-size:13px">${strengthItems}</ul>` : ''}
+  `;
+
+  document.getElementById('mgAuditModal').style.display = 'flex';
+}
+
+function mgScoreBar(score, max, label) {
+  const pct = Math.round((score / max) * 100);
+  const color = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444';
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <div style="width:130px;font-size:12px;color:var(--muted)">${label}</div>
+    <div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
+    </div>
+    <div style="width:40px;font-size:12px;font-weight:600;text-align:right">${score}/${max}</div>
+  </div>`;
+}
+
+function closeMgAuditModal() {
+  document.getElementById('mgAuditModal').style.display = 'none';
+}
+
+async function downloadMgAuditPdf() {
+  if (!mgSelectedLead || !mgSelectedAudit) return;
+  try {
+    const res = await fetch('/api/map-gap/audit/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead: mgSelectedLead,
+        audit: mgSelectedAudit,
+        niche: document.getElementById('mgNiche').value.trim(),
+        city: document.getElementById('mgCity').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      window.open('/api/map-gap/audits/' + encodeURIComponent(data.filename), '_blank');
+      showToast('PDF generated and opened.');
+    } else {
+      showToast('Failed to generate PDF: ' + data.error);
+    }
+  } catch (err) {
+    showToast('PDF generation failed: ' + err.message);
+  }
+}
+
+async function generateMgOutreach(index) {
+  const r = mgResults[index];
+  if (!r || !r.audit) return;
+
+  mgSelectedLead = r;
+  mgSelectedAudit = r.audit;
+
+  document.getElementById('mgOutreachBusiness').textContent = r.name;
+  document.getElementById('mgOutreachText').value = 'Generating…';
+  document.getElementById('mgOutreachModal').style.display = 'flex';
+
+  try {
+    const res = await fetch('/api/map-gap/outreach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead: r, audit: r.audit }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('mgOutreachText').value = data.message;
+    } else {
+      document.getElementById('mgOutreachText').value = 'Error: ' + data.error;
+    }
+  } catch (err) {
+    document.getElementById('mgOutreachText').value = 'Error: ' + err.message;
+  }
+}
+
+function closeMgOutreachModal() {
+  document.getElementById('mgOutreachModal').style.display = 'none';
+}
+
+function copyMgOutreach() {
+  const text = document.getElementById('mgOutreachText').value;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+}
+
+async function copyMgToCrm(index) {
+  const r = mgResults[index];
+  if (!r) return;
+
+  const crmLead = {
+    name: r.name,
+    address: r.address,
+    phone: r.phone,
+    website: r.website || '',
+    status: 'Operational',
+    category: '',
+    rating: r.rating,
+    reviewCount: r.reviewCount,
+    auditScore: r.audit?.percentage || 0,
+    auditGrade: r.audit?.grade || 'F',
+    gaps: r.gaps || [],
+    enriched: true,
+    match_source: 'map_gap',
+    map_gap_audit: r.audit,
+  };
+
+  try {
+    const filesRes = await fetch('/api/crm/files');
+    const files = await filesRes.json();
+    const filename = files.length > 0 ? files[0].name : `map-gap-${Date.now()}.json`;
+
+    let existing = [];
+    try {
+      const existingRes = await fetch('/api/crm/file/' + encodeURIComponent(filename));
+      if (existingRes.ok) existing = await existingRes.json();
+    } catch {}
+
+    existing.push(crmLead);
+    await fetch('/api/crm/file/' + encodeURIComponent(filename), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(existing),
+    });
+
+    showToast(`"${r.name}" copied to CRM (${filename})`);
+  } catch (err) {
+    showToast('Copy failed: ' + err.message);
+  }
+}
+
+async function auditAllMapGap() {
+  if (!mgResults.length) return;
+  showToast(`Generating PDFs for ${mgResults.length} businesses…`);
+
+  const niche = document.getElementById('mgNiche').value.trim();
+  const city = document.getElementById('mgCity').value.trim();
+  let count = 0;
+
+  for (const r of mgResults) {
+    if (!r.audit) continue;
+    try {
+      await fetch('/api/map-gap/audit/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead: r, audit: r.audit, niche, city }),
+      });
+      count++;
+    } catch {}
+  }
+
+  showToast(`${count} audit PDFs generated.`);
+}
+
+function exportMapGapCsv() {
+  if (!mgResults.length) return;
+
+  const headers = ['Name', 'Address', 'Phone', 'Website', 'Rating', 'Reviews', 'Score', 'Grade', 'Gaps', 'Is Target'];
+  const rows = mgResults.map(r => [
+    r.name,
+    r.address || '',
+    r.phone || '',
+    r.website || '',
+    r.rating || '',
+    r.reviewCount || 0,
+    r.audit?.percentage || 0,
+    r.audit?.grade || 'F',
+    (r.gaps || []).join('; '),
+    r.isTarget ? 'Yes' : 'No',
+  ]);
+
+  const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `map-gap-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function loadMapGapLibrary() {
+  const grid = document.getElementById('mgLibraryGrid');
+  if (!grid) return;
+
+  try {
+    const res = await fetch('/api/map-gap/files');
+    const files = await res.json();
+
+    if (!files.length) {
+      grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:40px">No scans yet. Run your first scan above.</p>';
+      return;
+    }
+
+    grid.innerHTML = files.map(f => (`
+      <div class="file-card" onclick="openMapGapFile('${escAttr(f.name)}')">
+        <div class="file-card-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="file-card-name">${esc(f.name)}</div>
+        <div class="file-card-meta">${f.leadCount || 0} businesses · ${formatDate(f.createdAt)}</div>
+      </div>
+    `)).join('');
+  } catch {
+    grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:40px">Failed to load scans.</p>';
+  }
+}
+
+async function openMapGapFile(filename) {
+  try {
+    const res = await fetch('/api/map-gap/file/' + encodeURIComponent(filename));
+    mgResults = await res.json();
+    mgCurrentScan = { filename };
+
+    const summary = {
+      totalBusinesses: mgResults.length,
+      targetCount: mgResults.filter(r => r.isTarget).length,
+      averageScore: mgResults.length > 0 ? Math.round(mgResults.reduce((s, r) => s + (r.audit?.percentage || 0), 0) / mgResults.length) : 0,
+      targetPercentage: mgResults.length > 0 ? Math.round((mgResults.filter(r => r.isTarget).length / mgResults.length) * 100) : 0,
+    };
+
+    renderMapGapSummary(summary);
+    renderMapGapResults(mgResults);
+    document.getElementById('mgSummarySection').style.display = 'block';
+    document.getElementById('mgResultsSection').style.display = 'block';
+  } catch (err) {
+    showToast('Failed to open scan: ' + err.message);
+  }
 }
 
 /* ════════════════════════════════════════════════

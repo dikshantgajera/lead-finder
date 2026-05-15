@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LeadFinder — Command Desk</title>
   <meta name="description" content="Scrape Targetron leads, save them to your library, enrich with Google Search, and manage your CRM.">
-  <meta name="theme-color" content="#15130f">
+  <meta name="theme-color" content="#11100d">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="LeadFinder — Command Desk">
+  <meta property="og:description" content="Build local market lists without leaving the desk. Scrape, enrich, and manage leads.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23c9952e'/><circle cx='16' cy='16' r='8' fill='none' stroke='%231a1308' stroke-width='2'/><path d='m24 24-5-5' stroke='%231a1308' stroke-width='2' stroke-linecap='round'/><path d='M16 12v8M12 16h8' stroke='%231a1308' stroke-width='2' stroke-linecap='round'/></svg>" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700;800&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -52,6 +58,12 @@
               <button class="nav-tab" role="tab" id="tab-final-list" onclick="switchView('final-list')">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                 Final List
+              </button>
+            </li>
+            <li role="presentation">
+              <button class="nav-tab" role="tab" id="tab-map-gap" onclick="switchView('map-gap')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Map Gap
               </button>
             </li>
           </ul>
@@ -503,6 +515,192 @@
 
     </div>
 
+    <!-- ══════════════════════════════════════════════
+         VIEW: MAP GAP
+    ══════════════════════════════════════════════ -->
+    <div id="view-map-gap" class="app-view" style="display:none">
+
+      <!-- Scan Form -->
+      <div class="hero-block">
+        <div class="eyebrow-tag"><div class="eyebrow-dot" style="background:var(--cyan)"></div>Map Gap Scanner</div>
+        <h1 class="hero-headline">Find businesses with holes in their Google Maps bucket.</h1>
+        <p class="hero-sub">Scan local businesses for missing websites, low reviews, and no review responses — then send them a personalized audit.</p>
+      </div>
+
+      <div class="search-shell reveal-up">
+        <div class="search-core">
+          <div class="panel-kicker">
+            <span>Scan brief</span><span class="panel-code">MG-01</span>
+          </div>
+          <div class="search-grid" id="mapGapForm">
+            <div class="field-block">
+              <label class="field-tag" for="mgNiche">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+                Niche / Industry
+              </label>
+              <div class="input-shell">
+                <input type="text" id="mgNiche" class="field-input" placeholder="e.g. plumber, dentist, landscaper…">
+              </div>
+            </div>
+            <div class="field-block">
+              <label class="field-tag" for="mgCity">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                City
+              </label>
+              <div class="input-shell">
+                <input type="text" id="mgCity" class="field-input" placeholder="e.g. Austin, TX">
+              </div>
+            </div>
+            <div class="field-block">
+              <label class="field-tag" for="mgMaxResults">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5z"/><path d="M8 7h6M8 11h8M8 15h5"/></svg>
+                Max Results
+              </label>
+              <div class="input-shell">
+                <input type="number" id="mgMaxResults" class="field-input" min="5" max="100" value="50" inputmode="numeric">
+              </div>
+            </div>
+            <div class="field-block">
+              <label class="field-tag" for="mgReviewThreshold">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                Review Threshold
+              </label>
+              <div class="input-shell">
+                <input type="number" id="mgReviewThreshold" class="field-input" min="5" max="100" value="20" inputmode="numeric">
+              </div>
+            </div>
+          </div>
+
+          <div class="search-cta">
+            <button class="btn-find" id="mgScanBtn" onclick="startMapGapScan()">
+              <span class="btn-label" id="mgScanBtnText">Scan for Gaps</span>
+              <span class="btn-icon-wrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </span>
+            </button>
+            <div class="search-hint">Scans Google Maps and scores each business out of 100.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scan Progress -->
+      <section class="progress-section" id="mgProgressSection" style="display:none">
+        <div class="progress-shell reveal-up">
+          <div class="progress-core">
+            <div class="progress-header">
+              <div class="pulse-ring"><div class="pulse-dot"></div></div>
+              <div class="progress-meta">
+                <span class="progress-title">Map Gap Scanner running</span>
+                <span class="progress-sub" id="mgProgressSub">Scanning Google Maps…</span>
+              </div>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="mgProgressBar"></div></div>
+            <div class="progress-log" id="mgProgressLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Summary Stats -->
+      <section id="mgSummarySection" style="display:none">
+        <div class="mg-summary-grid">
+          <div class="mg-stat-card">
+            <div class="mg-stat-value" id="mgStatTotal">0</div>
+            <div class="mg-stat-label">Businesses Scanned</div>
+          </div>
+          <div class="mg-stat-card mg-stat-target">
+            <div class="mg-stat-value" id="mgStatTargets">0</div>
+            <div class="mg-stat-label">High-Priority Targets</div>
+          </div>
+          <div class="mg-stat-card">
+            <div class="mg-stat-value" id="mgStatAvgScore">0</div>
+            <div class="mg-stat-label">Average Score</div>
+          </div>
+          <div class="mg-stat-card mg-stat-pct">
+            <div class="mg-stat-value" id="mgStatPct">0%</div>
+            <div class="mg-stat-label">Have Significant Gaps</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Table -->
+      <section id="mgResultsSection" style="display:none">
+        <div class="crm-top reveal-up">
+          <div class="crm-info">
+            <div class="section-eyebrow" style="color:var(--cyan)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Scan results
+            </div>
+            <h2 class="crm-title">Businesses with gaps</h2>
+            <div class="crm-meta-row"><span class="crm-count-badge" id="mgResultsMeta">0 businesses</span></div>
+          </div>
+          <div class="crm-controls">
+            <button class="btn-find" onclick="auditAllMapGap()">Audit All & Generate PDFs</button>
+            <button class="btn-ghost" onclick="exportMapGapCsv()">Export CSV</button>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="leads-filter-bar">
+          <div class="input-shell" style="flex:1;min-width:180px;max-width:340px">
+            <input type="text" id="mgFilterInput" class="field-input" placeholder="Filter by name, gaps, score…"
+              oninput="filterMapGapTable()" autocomplete="off">
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="crm-filter-chip active" id="mgChipAll" onclick="setMapGapFilter('all',this)">All</button>
+            <button class="crm-filter-chip" id="mgChipTargets" onclick="setMapGapFilter('targets',this)">Targets Only</button>
+            <button class="crm-filter-chip" id="mgChipNoWebsite" onclick="setMapGapFilter('no_website',this)">No Website</button>
+            <button class="crm-filter-chip" id="mgChipLowReviews" onclick="setMapGapFilter('low_reviews',this)">Low Reviews</button>
+          </div>
+          <span class="leads-filter-meta" id="mgFilterMeta"></span>
+        </div>
+
+        <div class="table-shell">
+          <div class="table-scroll">
+            <table class="crm-table" id="mgResultsTable">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th class="col-name">Business Name</th>
+                  <th class="col-address">Address</th>
+                  <th class="col-phone">Phone</th>
+                  <th class="col-website">Website</th>
+                  <th style="width:80px">Rating</th>
+                  <th style="width:90px">Reviews</th>
+                  <th style="width:80px">Score</th>
+                  <th style="width:70px">Grade</th>
+                  <th style="width:120px">Gaps</th>
+                  <th style="width:180px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="mgResultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Saved Scans Library -->
+      <section id="mgLibrarySection">
+        <div class="lib-header">
+          <div>
+            <div class="section-eyebrow" style="color:var(--cyan)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Saved scans
+            </div>
+            <h2 class="section-title">Map Gap Library</h2>
+            <p class="section-sub">Previous scan results stored locally.</p>
+          </div>
+          <div class="detail-actions">
+            <button class="btn-ghost" onclick="loadMapGapLibrary()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.05-9.58"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div class="file-grid" id="mgLibraryGrid"></div>
+      </section>
+
+    </div>
+
   </main>
 
   <!-- ══════════════════════════════════════════════
@@ -538,6 +736,46 @@
     <div class="toast-shell">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <span id="errorMsg">Error</span>
+    </div>
+  </div>
+
+  <!-- Map Gap Outreach Modal -->
+  <div class="modal-overlay" id="mgOutreachModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="mgOutreachTitle">
+    <div class="modal-shell modal-wide">
+      <div class="modal-header">
+        <h3 id="mgOutreachTitle">Outreach Message</h3>
+        <p>Personalized message for <strong id="mgOutreachBusiness"></strong></p>
+      </div>
+      <div class="modal-body">
+        <div class="mg-outreach-box">
+          <textarea id="mgOutreachText" class="mg-outreach-textarea" rows="8"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeMgOutreachModal()">Close</button>
+        <button class="btn-find" onclick="copyMgOutreach()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map Gap Audit Detail Modal -->
+  <div class="modal-overlay" id="mgAuditModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="mgAuditTitle">
+    <div class="modal-shell modal-xl">
+      <div class="modal-header">
+        <h3 id="mgAuditTitle">Audit Details</h3>
+        <p id="mgAuditSubtitle"></p>
+      </div>
+      <div class="modal-body" id="mgAuditBody"></div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeMgAuditModal()">Close</button>
+        <button class="btn-find" id="mgAuditPdfBtn" onclick="downloadMgAuditPdf()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download PDF
+        </button>
+      </div>
     </div>
   </div>
 
