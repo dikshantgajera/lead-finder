@@ -331,23 +331,25 @@ async function getBusinessDetails(page, cardIndex) {
       if (m) { address = m[1].trim().substring(0, 150); break; }
     }
 
-    // Website
+    // Website — scope to detail panel only
     let website = '';
-    const links = document.querySelectorAll('a');
-    for (const a of links) {
-      const href = a.href || '';
-      const inner = a.textContent?.trim() || '';
+    const detailPanel = document.querySelector('[role="dialog"], [data-item-id="overview"], div[jsaction*="mouseover:pane"], [aria-label*="Details"]');
+    const ctx = detailPanel || document;
+
+    const websiteLinks = ctx.querySelectorAll('a[data-item-id="authority"], a[aria-label*="Website"], a[aria-label*="ebsite"]');
+    for (const a of websiteLinks) {
+      const href = a.href || a.getAttribute('href') || '';
       if (href && !href.includes('google.com') && !href.includes('maps.google') && href.startsWith('http')) {
-        if (inner.toLowerCase().includes('website') || /^https?:\/\//.test(href)) {
-          website = href;
-          break;
-        }
+        website = href;
+        break;
       }
     }
-    if (!website) {
-      const wm = text.match(/(https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s]*)?)/);
+    if (!website && detailPanel) {
+      const ctxText = detailPanel.textContent || '';
+      const wm = ctxText.match(/(https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s]*)?)/);
       if (wm) website = wm[1];
     }
+    // Do NOT fall back to full page text — too unreliable
 
     // Hours
     let hours = '';
