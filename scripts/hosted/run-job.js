@@ -4,6 +4,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { scrapeLeads } = require('../../agent/scraper');
 const { enrichLeadsWithProgress } = require('../../agent/enricher');
+const { scanForGaps } = require('../../agent/map-gap-scanner');
+const { auditBusiness, generateSummary } = require('../../agent/map-gap-auditor');
 const fbPageIdScraper = require('../../agent/fb_page_id_scraper');
 const adsChecker = require('../check-fb-page-ads');
 const {
@@ -238,6 +240,49 @@ async function runFindAds(job) {
   };
 }
 
+async function runMapGap(job) {
+  const input = job.input_json || {};
+  const { niche, city, maxResults = 50, reviewThreshold = 20 } = input;
+
+  if (!niche || !city) throw new Error('Missing niche or city');
+
+  await progress(job.id, `Scanning Google Maps for "${niche}" in "${city}"...`, 'Starting map gap scan');
+
+  const results = await scanForGaps({
+    niche,
+    city,
+    maxResults: Number(maxResults),
+    reviewThreshold: Number(reviewThreshold),
+    onProgress: message => progress(job.id, message, 'Scanning Google Maps'),
+  });
+
+  const audited = results.map(r => ({
+    ...r,
+    audit: auditBusiness(r, { reviewThreshold: Number(reviewThreshold) }),
+  }));
+
+  const summary = generateSummary(audited.map(r => r.audit));
+
+  const fileName = `map-gap-${niche.replace(/[^a-zA-Z0-9]/g, '-')}-${city.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0, 10)}.json`;
+
+  const file = await saveFileForUser(job.user_id, 'map-gap', fileName, audited, job.id);
+
+  return {
+    resultFileId: file.id,
+    summary: {
+      file_name: file.name,
+      count: audited.length,
+      targets: audited.filter(r => r.isTarget).length,
+      totalBusinesses: summary.totalBusinesses,
+      targetCount: summary.targetCount,
+      averageScore: summary.averageScore,
+      targetPercentage: summary.targetPercentage,
+      gradeDistribution: summary.gradeDistribution,
+      topGaps: summary.topGaps,
+    },
+  };
+}
+
 async function main() {
   const jobId = process.argv[2];
   if (!jobId) throw new Error('Usage: node scripts/hosted/run-job.js <job-id>');
@@ -255,6 +300,7 @@ async function main() {
     else if (job.type === 'enrich') result = await runEnrich(job);
     else if (job.type === 'fb-page-ids') result = await runFbPageIds(job);
     else if (job.type === 'find-ads') result = await runFindAds(job);
+    else if (job.type === 'map-gap') result = await runMapGap(job);
     else throw new Error(`Unsupported job type: ${job.type}`);
 
     await updateJob(jobId, {

@@ -227,6 +227,7 @@ const activeHostedJobs = {
   enrich: null,
   'fb-page-ids': null,
   'find-ads': null,
+  'map-gap': null,
 };
 let pendingImportKind = null;
 let currentLeadsFileMeta = null;
@@ -1913,6 +1914,47 @@ async function startMapGapScan() {
   document.getElementById('mgSummarySection').style.display = 'none';
   document.getElementById('mgResultsSection').style.display = 'none';
 
+  if (isHostedMode()) {
+    try {
+      const job = await hostedApi.startJob('map-gap', { niche, city, maxResults, reviewThreshold });
+      activeHostedJobs['map-gap'] = job.id;
+      await hostedApi.pollJob(job.id, {
+        intervalMs: 4000,
+        onUpdate(nextJob) {
+          renderJobLog(progressLog, nextJob.progress_log);
+          updateJobProgressBar(progressBar, nextJob.progress_log);
+          progressSub.textContent = nextJob.progress_step || 'Scanning Google Maps';
+        },
+      });
+      activeHostedJobs['map-gap'] = null;
+      const completedJob = await hostedApi.getJob(job.id);
+      if (completedJob.status !== 'completed') throw new Error(completedJob.error_message || 'Map gap scan failed.');
+      const payload = await hostedApi.readFileById(completedJob.result_file_id);
+      mgResults = payload.data || [];
+      mgCurrentScan = completedJob.result_summary_json || {};
+      progressBar.style.width = '100%';
+      renderMapGapSummary({
+        totalBusinesses: mgCurrentScan.totalBusinesses || mgResults.length,
+        targetCount: mgCurrentScan.targetCount || mgResults.filter(r => r.isTarget).length,
+        averageScore: mgCurrentScan.averageScore || 0,
+        targetPercentage: mgCurrentScan.targetPercentage || 0,
+      });
+      renderMapGapResults(mgResults);
+      progressSub.textContent = `Done — ${mgCurrentScan.count || mgResults.length} businesses, ${mgCurrentScan.targets || mgResults.filter(r => r.isTarget).length} targets.`;
+      showToast(`✅ Map gap scan complete. Saved to library.`);
+    } catch (err) {
+      activeHostedJobs['map-gap'] = null;
+      showToast('Scan failed: ' + err.message);
+      progressSub.textContent = 'Error: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btnText.textContent = 'Scan for Gaps';
+      setAgentStatus('idle', 'Agent Idle');
+      loadMapGapLibrary();
+    }
+    return;
+  }
+
   try {
     const res = await fetch('/api/map-gap/scan/stream', {
       method: 'POST',
@@ -2280,8 +2322,13 @@ async function loadMapGapLibrary() {
   if (!grid) return;
 
   try {
-    const res = await fetch('/api/map-gap/files');
-    const files = await res.json();
+    let files;
+    if (isHostedMode()) {
+      files = registerHostedFiles('map-gap', await hostedApi.listFiles('map-gap'));
+    } else {
+      const res = await fetch('/api/map-gap/files');
+      files = await res.json();
+    }
 
     if (!files.length) {
       grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:40px">No scans yet. Run your first scan above.</p>';
@@ -2294,7 +2341,7 @@ async function loadMapGapLibrary() {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
         <div class="file-card-name">${esc(f.name)}</div>
-        <div class="file-card-meta">${f.leadCount || 0} businesses · ${formatDate(f.createdAt)}</div>
+        <div class="file-card-meta">${f.record_count || f.leadCount || 0} businesses · ${formatDate(f.created_at || f.createdAt)}</div>
       </div>
     `)).join('');
   } catch {
@@ -2304,9 +2351,17 @@ async function loadMapGapLibrary() {
 
 async function openMapGapFile(filename) {
   try {
-    const res = await fetch('/api/map-gap/file/' + encodeURIComponent(filename));
-    mgResults = await res.json();
-    mgCurrentScan = { filename };
+    let data;
+    if (isHostedMode()) {
+      const meta = hostedFileMeta('map-gap', filename);
+      if (!meta) throw new Error('File not found');
+      const payload = await hostedApi.readFileById(meta.id);
+      data = payload.data;
+    } else {
+      const res = await fetch('/api/map-gap/file/' + encodeURIComponent(filename));
+      data = await res.json();
+    }
+    mgResults = data || [];
 
     const summary = {
       totalBusinesses: mgResults.length,

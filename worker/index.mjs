@@ -8,6 +8,7 @@ const JOB_WORKFLOWS = {
   enrich: 'enrich.yml',
   'fb-page-ids': 'fb-page-ids.yml',
   'find-ads': 'find-ads.yml',
+  'map-gap': 'map-gap.yml',
 };
 
 const FILE_KIND_BUCKETS = {
@@ -15,6 +16,7 @@ const FILE_KIND_BUCKETS = {
   crm: 'crm',
   'final-list': 'final-list',
   'fb-page-id-reports': 'fb-page-id-reports',
+  'map-gap': 'map-gap',
 };
 
 function corsHeaders(request) {
@@ -374,6 +376,7 @@ export default {
       if (request.method === 'POST' && url.pathname === '/api/jobs/enrich') return createJob(request, env, user, 'enrich');
       if (request.method === 'POST' && url.pathname === '/api/jobs/fb-page-ids') return createJob(request, env, user, 'fb-page-ids');
       if (request.method === 'POST' && url.pathname === '/api/jobs/find-ads') return createJob(request, env, user, 'find-ads');
+      if (request.method === 'POST' && url.pathname === '/api/jobs/map-gap') return createJob(request, env, user, 'map-gap');
 
       if (request.method === 'GET' && url.pathname === '/api/files') return handleListFiles(request, env, user, url);
       if (request.method === 'POST' && url.pathname === '/api/files') return handleCreateFile(request, env, user);
