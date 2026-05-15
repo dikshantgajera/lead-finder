@@ -221,6 +221,7 @@ const hostedFileIndex = {
   leads: new Map(),
   crm: new Map(),
   'final-list': new Map(),
+  'map-gap': new Map(),
 };
 const activeHostedJobs = {
   search: null,
