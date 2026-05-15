@@ -236,7 +236,11 @@ async function getBusinessDetails(page, cardIndex) {
   try {
     await page.waitForSelector('[data-item-id="authority"], [data-item-id="address"], [data-item-id^="phone"]', { timeout: 8000 });
   } catch (e) {}
-  await sleep(1000);
+  // Wait for rating element to fully load (loads async after panel opens)
+  try {
+    await page.waitForSelector('[aria-label*="stars"], [aria-label*="star"], [aria-label*="rated"]', { timeout: 5000 });
+  } catch (e) {}
+  await sleep(1500);
 
   // Extract fields using Playwright locators (same pattern as enricher.js)
   const result = { website: '', hours: '', phone: '', address: '', rating: 0, reviewCount: 0, photosCount: 0, respondsToReviews: false };
@@ -417,9 +421,6 @@ async function scanForGaps({ niche, city, maxResults, reviewThreshold, onProgres
       }
       if (!lead.respondsToReviews && lead.reviewCount > 0) {
         lead.gaps.push('no_review_responses');
-      }
-      if (!lead.hasHours) {
-        lead.gaps.push('no_hours');
       }
       if (!lead.hasPhotos) {
         lead.gaps.push('no_photos');
