@@ -3,6 +3,7 @@ const FILE_KIND_BUCKETS = {
   crm: 'crm',
   'final-list': 'final-list',
   'fb-page-id-reports': 'fb-page-id-reports',
+  'map-gap': 'map-gap',
 };
 
 function requiredEnv(name) {
