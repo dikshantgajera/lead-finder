@@ -164,7 +164,7 @@ async function extractBusinessCards(page) {
 
       // Extract website from card
       let website = '';
-      const linkEls = card.querySelectorAll('a[href*="http"]:not([href*="google.com"]):not([href*="maps.google"])');
+      const linkEls = card.querySelectorAll('a.rogA2c.ITvuef, a[href*="http"]:not([href*="google.com"]):not([href*="maps.google"])');
       for (const el of linkEls) {
         const href = el.href || '';
         if (href && href.startsWith('http')) { website = href; break; }
@@ -333,11 +333,14 @@ async function getBusinessDetails(page, cardIndex) {
 
     // Website — scope to detail panel only
     let website = '';
-    const detailPanel = document.querySelector('[role="dialog"], [data-item-id="overview"], div[jsaction*="mouseover:pane"], [aria-label*="Details"]');
+    const detailPanel = document.querySelector('[role="dialog"], [data-item-id="overview"], div[jsaction*="mouseover:pane"], [aria-label*="Details"], .rogA2c.ITvuef');
     const ctx = detailPanel || document;
 
-    const websiteLinks = ctx.querySelectorAll('a[data-item-id="authority"], a[aria-label*="Website"], a[aria-label*="ebsite"]');
-    for (const a of websiteLinks) {
+    const websiteLinks = ctx.querySelectorAll('a.rogA2c.ITvuef, a[data-item-id="authority"], a[aria-label*="Website"], a[aria-label*="ebsite"]');
+
+    // Also search inside .rogA2c containers for links
+    const containerLinks = ctx.querySelectorAll('.rogA2c.ITvuef a');
+    for (const a of [...websiteLinks, ...containerLinks]) {
       const href = a.href || a.getAttribute('href') || '';
       if (href && !href.includes('google.com') && !href.includes('maps.google') && href.startsWith('http')) {
         website = href;
