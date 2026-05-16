@@ -109,7 +109,27 @@ async function extractBusinessCards(page) {
         }
       }
 
-      // Pattern 2: aria-label on star element (within card or its parent)
+      // Pattern 2: fontBodyMedium dmRWX class (current Google Maps card element)
+      if (!rating || !reviewCount) {
+        const rw = card.querySelector('.fontBodyMedium.dmRWX');
+        if (rw) {
+          const t = rw.textContent || '';
+          const m = t.match(/(\d+\.\d)\s*[★☆]*\s*·?\s*\(?\s*([\d,]+)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
+          if (m) {
+            if (!rating) { const v = parseFloat(m[1]); if (v >= 1 && v <= 5) rating = v; }
+            if (!reviewCount) reviewCount = parseInt(m[2].replace(/,/g, ''), 10);
+          }
+          if (!reviewCount) {
+            const pm = t.match(/(\d+\.\d)\s*[★☆·\s]*\((\d[\d,]*)\)/);
+            if (pm) {
+              if (!rating) { const v = parseFloat(pm[1]); if (v >= 1 && v <= 5) rating = v; }
+              reviewCount = parseInt(pm[2].replace(/,/g, ''), 10);
+            }
+          }
+        }
+      }
+
+      // Pattern 3: aria-label on star element (within card or its parent)
       if (!rating || !reviewCount) {
         const scope = card.parentElement || card;
         const starEl = scope.querySelector('[aria-label*="star"], [aria-label*="stars"], [aria-label*="rated"]');
@@ -334,11 +354,29 @@ async function getBusinessDetails(page, cardIndex) {
     }
   } catch (e) {}
 
+  try {
+    const rwEl = page.locator('.fontBodyMedium.dmRWX').first();
+    if (await rwEl.isVisible().catch(() => false)) {
+      const rwText = await rwEl.evaluate(el => el.textContent || '').catch(() => '');
+      if (rwText) {
+        const rm = rwText.match(/(\d+\.?\d*)\s*(?:stars?|rated|out of)/i);
+        if (rm && !rating) { const v = parseFloat(rm[1]); if (v >= 1 && v <= 5) rating = v; }
+        const rvm = rwText.match(/([\d,]+)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
+        if (rvm && !reviewCount) reviewCount = parseInt(rvm[1].replace(/,/g, ''), 10);
+        if (!reviewCount) {
+          const pm = rwText.match(/[★☆·\s]*\((\d[\d,]*)\)/);
+          if (pm) reviewCount = parseInt(pm[1].replace(/,/g, ''), 10);
+        }
+      }
+    }
+  } catch (e) {}
+
   // Fallback: scoped evaluate on detail panel
   if (!rating || !reviewCount) {
     const extras = await page.evaluate(() => {
       const ctx = document.querySelector('[role="dialog"], [data-item-id="overview"]') || document;
-      const text = ctx.textContent || '';
+      const rw = ctx.querySelector('.fontBodyMedium.dmRWX');
+      const text = (rw && rw.textContent) || ctx.textContent || '';
 
       let r = 0, rv = 0;
 
