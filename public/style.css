@@ -530,6 +530,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .file-card-icon{width:44px;height:44px;background:rgba(94,148,152,.08);color:var(--cyan);border-radius:10px;display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(94,148,152,.14)}
 .file-card-name{font-size:1.02rem;font-weight:600;color:var(--ink);letter-spacing:-.01em}
 .file-card-meta{color:var(--muted);font-size:.76rem;font-family:var(--mono)}
+.file-card-delete{position:absolute;top:8px;right:8px;width:28px;height:28px;display:grid;place-items:center;border-radius:6px;border:0;background:transparent;color:var(--muted);cursor:pointer;opacity:0;transition:all .2s var(--ease);z-index:2}
+.file-card:hover .file-card-delete{opacity:1}
+.file-card-delete:hover{background:rgba(239,68,68,.12);color:#ef4444}
 
 /* ════════════════════════════════════════════════
    DETAIL VIEW

@@ -94,7 +94,7 @@ async function extractBusinessCards(page) {
       const containerText = (card.parentElement?.textContent || card.textContent || '');
 
       // Pattern 1: "4.7 ★★★★★ 225 Google reviews", "4.7 ★★★★★ · 225 reviews"
-      const ratingReviewMatch = containerText.match(/(\d+\.\d)\s*[★☆]*\s*·?\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      const ratingReviewMatch = containerText.match(/(\d+\.\d)\s*[★☆]*\s*·?\s*\(?\s*([\d,]+)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
       if (ratingReviewMatch) {
         rating = parseFloat(ratingReviewMatch[1]);
         reviewCount = parseInt(ratingReviewMatch[2].replace(/,/g, ''), 10);
@@ -116,7 +116,7 @@ async function extractBusinessCards(page) {
         if (starEl) {
           const label = starEl.getAttribute('aria-label') || '';
           const rM = label.match(/(\d+\.?\d*)\s*(?:stars?|rated)/i);
-          const rvM = label.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
+          const rvM = label.match(/([\d,]+)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
           if (rM && !rating) rating = parseFloat(rM[1]);
           if (rvM && !reviewCount) reviewCount = parseInt(rvM[1].replace(/,/g, ''), 10);
         }
@@ -329,7 +329,7 @@ async function getBusinessDetails(page, cardIndex) {
       const label = await starEl.getAttribute('aria-label').catch(() => '') || '';
       const rm = label.match(/(\d+\.?\d*)\s*(?:stars?|rated|out of)/i);
       if (rm) { const v = parseFloat(rm[1]); if (v >= 1 && v <= 5) rating = v; }
-      const rvm = label.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      const rvm = label.match(/([\d,]+)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
       if (rvm) reviewCount = parseInt(rvm[1].replace(/,/g, ''), 10);
     }
   } catch (e) {}
@@ -343,7 +343,7 @@ async function getBusinessDetails(page, cardIndex) {
       let r = 0, rv = 0;
 
       // Pattern: "4.7 ★★★★★ 225 reviews" or "4.7 ★★★★★ · 225 reviews" (star chars or · between rating and count)
-      const combined = text.match(/(\d+\.\d)\s*[★☆\s]*\s*·?\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      const combined = text.match(/(\d+\.\d)\s*[★☆\s]*\s*·?\s*\(?\s*([\d,]+)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
       if (combined) { r = parseFloat(combined[1]); rv = parseInt(combined[2].replace(/,/g, ''), 10); }
 
       // Pattern: "4.7 stars" or "Rated 4.7"
@@ -356,7 +356,7 @@ async function getBusinessDetails(page, cardIndex) {
       if (!r) {
         const lines = text.split('\n');
         for (const line of lines) {
-          if (/stars?|reviews?|rated|out of 5/i.test(line)) {
+          if (/stars?|reviews?|ratings?|rated|out of 5/i.test(line)) {
             const nm = line.match(/(\d+\.\d)/);
             if (nm) { const v = parseFloat(nm[1]); if (v >= 1 && v <= 5) { r = v; break; } }
           }
@@ -365,11 +365,11 @@ async function getBusinessDetails(page, cardIndex) {
 
       // Review count
       if (!rv) {
-        const rvm = text.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
+        const rvm = text.match(/([\d,]+)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
         if (rvm) rv = parseInt(rvm[1].replace(/,/g, ''), 10);
       }
       if (!rv) {
-        const parenRv = text.match(/[★☆·\s]*\((\d[\d,]*)\)\s*(?:Google\s*)?reviews?/i);
+        const parenRv = text.match(/[★☆·\s]*\((\d[\d,]*)\)\s*(?:Google\s*)?(?:reviews?|ratings?)/i);
         if (parenRv) rv = parseInt(parenRv[1].replace(/,/g, ''), 10);
       }
 

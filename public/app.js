@@ -534,6 +534,8 @@ function switchView(view) {
     loadFinalList();
   }
   if (view === 'map-gap') {
+    document.getElementById('mgDetailSection').style.display = 'none';
+    document.getElementById('mgLibrarySection').style.display = 'block';
     loadMapGapLibrary();
   }
 }
@@ -1883,6 +1885,7 @@ async function clearFinalList() {
 ════════════════════════════════════════════════ */
 let mgResults = [];
 let mgCurrentScan = null;
+let mgCurrentFile = null;
 let mgCurrentFilter = 'all';
 let mgSelectedLead = null;
 let mgSelectedAudit = null;
@@ -1912,8 +1915,7 @@ async function startMapGapScan() {
   progressLog.innerHTML = '';
   progressBar.style.width = '0%';
 
-  document.getElementById('mgSummarySection').style.display = 'none';
-  document.getElementById('mgResultsSection').style.display = 'none';
+  document.getElementById('mgDetailSection').style.display = 'none';
 
   if (isHostedMode()) {
     try {
@@ -1933,14 +1935,9 @@ async function startMapGapScan() {
       const payload = await hostedApi.readFileById(completedJob.result_file_id);
       mgResults = payload.data || [];
       mgCurrentScan = completedJob.result_summary_json || {};
+      mgCurrentFile = completedJob.result_filename || 'scan-results';
       progressBar.style.width = '100%';
-      renderMapGapSummary({
-        totalBusinesses: mgCurrentScan.totalBusinesses || mgResults.length,
-        targetCount: mgCurrentScan.targetCount || mgResults.filter(r => r.isTarget).length,
-        averageScore: mgCurrentScan.averageScore || 0,
-        targetPercentage: mgCurrentScan.targetPercentage || 0,
-      });
-      renderMapGapResults(mgResults);
+      showMapGapDetail(mgCurrentFile);
       progressSub.textContent = `Done — ${mgCurrentScan.count || mgResults.length} businesses, ${mgCurrentScan.targets || mgResults.filter(r => r.isTarget).length} targets.`;
       showToast(`✅ Map gap scan complete. Saved to library.`);
     } catch (err) {
@@ -1995,8 +1992,8 @@ async function startMapGapScan() {
               mgResults = await fileRes.json();
             } catch {}
 
-            renderMapGapSummary(event.summary);
-            renderMapGapResults(mgResults);
+            mgCurrentFile = event.filename;
+            showMapGapDetail(event.filename);
             progressSub.textContent = `Done — ${event.count} businesses, ${event.targets} targets.`;
           } else if (event.type === 'error') {
             showToast(event.message);
@@ -2020,7 +2017,6 @@ function renderMapGapSummary(summary) {
   document.getElementById('mgStatTargets').textContent = summary.targetCount;
   document.getElementById('mgStatAvgScore').textContent = summary.averageScore;
   document.getElementById('mgStatPct').textContent = summary.targetPercentage + '%';
-  document.getElementById('mgSummarySection').style.display = 'block';
 }
 
 function renderMapGapResults(results) {
@@ -2028,7 +2024,6 @@ function renderMapGapResults(results) {
   const filtered = filterMapGapResults(results);
 
   document.getElementById('mgResultsMeta').textContent = `${filtered.length} businesses`;
-  document.getElementById('mgResultsSection').style.display = 'block';
 
   body.innerHTML = filtered.map((r, i) => {
     const a = r.audit || {};
@@ -2338,6 +2333,9 @@ async function loadMapGapLibrary() {
 
     grid.innerHTML = files.map(f => (`
       <div class="file-card" onclick="openMapGapFile('${escAttr(f.name)}')">
+        <button class="file-card-delete" onclick="event.stopPropagation();deleteMapGapLibraryFile('${escAttr(f.name)}')" title="Delete scan">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
         <div class="file-card-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
@@ -2348,6 +2346,21 @@ async function loadMapGapLibrary() {
   } catch {
     grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:40px">Failed to load scans.</p>';
   }
+}
+
+function showMapGapDetail(filename) {
+  mgCurrentFile = filename;
+  const summary = {
+    totalBusinesses: mgResults.length,
+    targetCount: mgResults.filter(r => r.isTarget).length,
+    averageScore: mgResults.length > 0 ? Math.round(mgResults.reduce((s, r) => s + (r.audit?.percentage || 0), 0) / mgResults.length) : 0,
+    targetPercentage: mgResults.length > 0 ? Math.round((mgResults.filter(r => r.isTarget).length / mgResults.length) * 100) : 0,
+  };
+  document.getElementById('mgDetailName').textContent = filename;
+  document.getElementById('mgLibrarySection').style.display = 'none';
+  document.getElementById('mgDetailSection').style.display = 'block';
+  renderMapGapSummary(summary);
+  renderMapGapResults(mgResults);
 }
 
 async function openMapGapFile(filename) {
@@ -2363,21 +2376,49 @@ async function openMapGapFile(filename) {
       data = await res.json();
     }
     mgResults = data || [];
-
-    const summary = {
-      totalBusinesses: mgResults.length,
-      targetCount: mgResults.filter(r => r.isTarget).length,
-      averageScore: mgResults.length > 0 ? Math.round(mgResults.reduce((s, r) => s + (r.audit?.percentage || 0), 0) / mgResults.length) : 0,
-      targetPercentage: mgResults.length > 0 ? Math.round((mgResults.filter(r => r.isTarget).length / mgResults.length) * 100) : 0,
-    };
-
-    renderMapGapSummary(summary);
-    renderMapGapResults(mgResults);
-    document.getElementById('mgSummarySection').style.display = 'block';
-    document.getElementById('mgResultsSection').style.display = 'block';
+    showMapGapDetail(filename);
   } catch (err) {
     showToast('Failed to open scan: ' + err.message);
   }
+}
+
+function closeMapGapDetail() {
+  document.getElementById('mgDetailSection').style.display = 'none';
+  document.getElementById('mgLibrarySection').style.display = 'block';
+  mgCurrentFile = null;
+  mgResults = [];
+  mgCurrentScan = null;
+}
+
+async function deleteMapGapFile() {
+  if (!mgCurrentFile) return;
+  const name = confirm(`Delete "${mgCurrentFile}"?`) && mgCurrentFile;
+  if (!name) return;
+  try {
+    if (isHostedMode()) {
+      const meta = hostedFileMeta('map-gap', name);
+      if (meta) await hostedApi.deleteFile(meta.id);
+    } else {
+      await fetch('/api/map-gap/file/' + encodeURIComponent(name), { method: 'DELETE' });
+    }
+    showToast('File deleted.');
+    closeMapGapDetail();
+    loadMapGapLibrary();
+  } catch { showToast('Delete failed.'); }
+}
+
+async function deleteMapGapLibraryFile(filename) {
+  if (!filename || !confirm(`Delete "${filename}"?`)) return;
+  try {
+    if (isHostedMode()) {
+      const meta = hostedFileMeta('map-gap', filename);
+      if (meta) await hostedApi.deleteFile(meta.id);
+    } else {
+      await fetch('/api/map-gap/file/' + encodeURIComponent(filename), { method: 'DELETE' });
+    }
+    showToast('File deleted.');
+    loadMapGapLibrary();
+  } catch { showToast('Delete failed.'); }
 }
 
 /* ════════════════════════════════════════════════

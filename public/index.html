@@ -600,8 +600,23 @@
         </div>
       </section>
 
-      <!-- Summary Stats -->
-      <section id="mgSummarySection" style="display:none">
+      <!-- File detail (shown when opening a saved scan) -->
+      <section id="mgDetailSection" style="display:none">
+        <div class="detail-header">
+          <button class="btn-ghost" onclick="closeMapGapDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            Back to library
+          </button>
+          <div class="detail-title-row">
+            <h3 id="mgDetailName"></h3>
+            <div class="detail-actions">
+              <button class="btn-find" onclick="auditAllMapGap()">Audit All & Generate PDFs</button>
+              <button class="btn-ghost" onclick="exportMapGapCsv()">Export CSV</button>
+              <button class="btn-danger" onclick="deleteMapGapFile()">Delete File</button>
+            </div>
+          </div>
+        </div>
+
         <div class="mg-summary-grid">
           <div class="mg-stat-card">
             <div class="mg-stat-value" id="mgStatTotal">0</div>
@@ -620,10 +635,7 @@
             <div class="mg-stat-label">Have Significant Gaps</div>
           </div>
         </div>
-      </section>
 
-      <!-- Results Table -->
-      <section id="mgResultsSection" style="display:none">
         <div class="crm-top reveal-up">
           <div class="crm-info">
             <div class="section-eyebrow" style="color:var(--cyan)">
@@ -633,13 +645,8 @@
             <h2 class="crm-title">Businesses with gaps</h2>
             <div class="crm-meta-row"><span class="crm-count-badge" id="mgResultsMeta">0 businesses</span></div>
           </div>
-          <div class="crm-controls">
-            <button class="btn-find" onclick="auditAllMapGap()">Audit All & Generate PDFs</button>
-            <button class="btn-ghost" onclick="exportMapGapCsv()">Export CSV</button>
-          </div>
         </div>
 
-        <!-- Filter bar -->
         <div class="leads-filter-bar">
           <div class="input-shell" style="flex:1;min-width:180px;max-width:340px">
             <input type="text" id="mgFilterInput" class="field-input" placeholder="Filter by name, gaps, score…"
