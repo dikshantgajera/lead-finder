@@ -93,11 +93,20 @@ async function extractBusinessCards(page) {
       let reviewCount = 0;
       const containerText = (card.parentElement?.textContent || card.textContent || '');
 
-      // Pattern 1: "4.7 ★★★★★ 225 Google reviews" or "4.7 (225)"
-      const ratingReviewMatch = containerText.match(/(\d+\.\d)\s*[★☆]*\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      // Pattern 1: "4.7 ★★★★★ 225 Google reviews", "4.7 ★★★★★ · 225 reviews"
+      const ratingReviewMatch = containerText.match(/(\d+\.\d)\s*[★☆]*\s*·?\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
       if (ratingReviewMatch) {
         rating = parseFloat(ratingReviewMatch[1]);
         reviewCount = parseInt(ratingReviewMatch[2].replace(/,/g, ''), 10);
+      }
+
+      // Pattern 1a: "4.7 ★★★★★ (225)" or "4.7 (225)" without "reviews" keyword
+      if (!reviewCount) {
+        const parenMatch = containerText.match(/(\d+\.\d)\s*[★☆·\s]*\((\d[\d,]*)\)/);
+        if (parenMatch) {
+          if (!rating) { const v = parseFloat(parenMatch[1]); if (v >= 1 && v <= 5) rating = v; }
+          reviewCount = parseInt(parenMatch[2].replace(/,/g, ''), 10);
+        }
       }
 
       // Pattern 2: aria-label on star element (within card or its parent)
@@ -333,8 +342,8 @@ async function getBusinessDetails(page, cardIndex) {
 
       let r = 0, rv = 0;
 
-      // Pattern: "4.7 ★★★★★ 225 reviews" (star chars between rating and count)
-      const combined = text.match(/(\d+\.\d)\s*[★☆\s]*\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
+      // Pattern: "4.7 ★★★★★ 225 reviews" or "4.7 ★★★★★ · 225 reviews" (star chars or · between rating and count)
+      const combined = text.match(/(\d+\.\d)\s*[★☆\s]*\s*·?\s*\(?\s*([\d,]+)\s*(?:Google\s*)?reviews?/i);
       if (combined) { r = parseFloat(combined[1]); rv = parseInt(combined[2].replace(/,/g, ''), 10); }
 
       // Pattern: "4.7 stars" or "Rated 4.7"
@@ -358,6 +367,10 @@ async function getBusinessDetails(page, cardIndex) {
       if (!rv) {
         const rvm = text.match(/([\d,]+)\s*(?:Google\s*)?reviews?/i);
         if (rvm) rv = parseInt(rvm[1].replace(/,/g, ''), 10);
+      }
+      if (!rv) {
+        const parenRv = text.match(/[★☆·\s]*\((\d[\d,]*)\)\s*(?:Google\s*)?reviews?/i);
+        if (parenRv) rv = parseInt(parenRv[1].replace(/,/g, ''), 10);
       }
 
       const photosCount = parseInt(text.match(/(\d+)\s*photos?/i)?.[1] || '0', 10) || 0;
