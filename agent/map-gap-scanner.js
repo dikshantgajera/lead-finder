@@ -29,7 +29,7 @@ async function createBrowser(headless = true) {
   return { browser, context, page };
 }
 
-async function searchGoogleMaps(page, niche, city) {
+async function searchGoogleMaps(page, niche, city, onProgress = () => {}, maxResults = Infinity) {
   const query = `${niche} in ${city}`;
   const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -44,17 +44,53 @@ async function searchGoogleMaps(page, niche, city) {
 
   await sleep(1000);
 
-  await page.evaluate(async () => {
-    const scrollContainer = document.querySelector('[role="feed"]');
-    if (!scrollContainer) return;
-    let prev = 0;
-    for (let i = 0; i < 15; i++) {
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      await new Promise(r => setTimeout(r, 800));
-      if (scrollContainer.scrollTop === prev) break;
-      prev = scrollContainer.scrollTop;
+  // Scroll the results feed all the way to the bottom BEFORE extracting anything.
+  // Keep scrolling until Google shows "You've reached the end of the list" OR the
+  // feed stops growing (no new cards / no new height) for several consecutive checks.
+  // The whole loop is driven from Node so we can report live progress.
+  const MAX_SCROLLS = 60;          // hard safety cap
+  const STABLE_LIMIT = 4;          // consecutive no-growth checks = end of list
+  let stable = 0;
+  let lastCount = 0;
+
+  for (let i = 0; i < MAX_SCROLLS; i++) {
+    const state = await page.evaluate(async () => {
+      const feed = document.querySelector('[role="feed"]');
+      if (!feed) return { count: 0, atEnd: true, height: 0 };
+      feed.scrollTop = feed.scrollHeight;
+      await new Promise(r => setTimeout(r, 1000));
+      const cards = feed.querySelectorAll('a.hfpxzc, .Nv2PK, div[role="article"]');
+      const text = feed.innerText || '';
+      const atEnd = /you've reached the end of the list|reached the end of the list/i.test(text);
+      return { count: cards.length, atEnd, height: feed.scrollHeight };
+    }).catch(() => ({ count: lastCount, atEnd: true, height: 0 }));
+
+    onProgress(`Scrolling results... ${state.count} businesses loaded`);
+
+    // Stop as soon as we've loaded enough to hit the max-results target,
+    // even if Google still has more listings to show below.
+    if (state.count >= maxResults) {
+      onProgress(`Reached target of ${maxResults} businesses — stopping scroll.`);
+      break;
     }
-  }).catch(() => {});
+
+    if (state.atEnd) {
+      onProgress(`Reached the end of the list — ${state.count} businesses loaded.`);
+      break;
+    }
+
+    // No new cards since last scroll? Count consecutive stalls before giving up.
+    if (state.count <= lastCount) {
+      stable += 1;
+      if (stable >= STABLE_LIMIT) {
+        onProgress(`No more results loading — ${state.count} businesses loaded.`);
+        break;
+      }
+    } else {
+      stable = 0;
+    }
+    lastCount = state.count;
+  }
 
   await sleep(1500);
 }
@@ -437,7 +473,7 @@ async function scanForGaps({ niche, city, maxResults, reviewThreshold, onProgres
 
   try {
     onProgress(`Searching Google Maps for "${niche}" in "${city}"...`);
-    await searchGoogleMaps(page, niche, city);
+    await searchGoogleMaps(page, niche, city, onProgress, config.maxResults);
     onProgress('Extracting business listings...');
 
     const cards = await extractBusinessCards(page);
