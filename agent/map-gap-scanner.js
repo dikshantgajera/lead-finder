@@ -29,9 +29,8 @@ async function createBrowser(headless = true) {
   return { browser, context, page };
 }
 
-async function searchGoogleMaps(page, niche, city, onProgress = () => {}, maxResults = Infinity) {
-  const query = `${niche} in ${city}`;
-  const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+// Load a Google Maps results URL and wait for the listings feed to appear.
+async function loadResultsView(page, url) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await sleep(4000);
 
@@ -43,13 +42,24 @@ async function searchGoogleMaps(page, niche, city, onProgress = () => {}, maxRes
     .catch(() => {});
 
   await sleep(1000);
+}
 
+async function searchGoogleMaps(page, niche, city, onProgress = () => {}, maxResults = Infinity) {
+  const query = `${niche} in ${city}`;
+  const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+  await loadResultsView(page, url);
+  await autoScrollFeed(page, onProgress, maxResults);
+}
+
+// Scroll the currently-loaded results feed to the bottom (or until the
+// max-results target is reached), so every listing is in the DOM before extraction.
+async function autoScrollFeed(page, onProgress = () => {}, maxResults = Infinity) {
   // Scroll the results feed all the way to the bottom BEFORE extracting anything.
   // Keep scrolling until Google shows "You've reached the end of the list" OR the
   // feed stops growing (no new cards / no new height) for several consecutive checks.
   // The whole loop is driven from Node so we can report live progress.
-  const MAX_SCROLLS = 60;          // hard safety cap
-  const STABLE_LIMIT = 4;          // consecutive no-growth checks = end of list
+  const MAX_SCROLLS = 80;          // hard safety cap
+  const STABLE_LIMIT = 6;          // consecutive no-growth checks = end of list
   let stable = 0;
   let lastCount = 0;
 
@@ -57,9 +67,28 @@ async function searchGoogleMaps(page, niche, city, onProgress = () => {}, maxRes
     const state = await page.evaluate(async () => {
       const feed = document.querySelector('[role="feed"]');
       if (!feed) return { count: 0, atEnd: true, height: 0 };
+
+      const sel = 'a.hfpxzc, .Nv2PK, div[role="article"]';
+
+      // Jump to the bottom, then nudge the last card into view — Google only
+      // fetches the next batch when the last result actually enters the viewport.
       feed.scrollTop = feed.scrollHeight;
-      await new Promise(r => setTimeout(r, 1000));
-      const cards = feed.querySelectorAll('a.hfpxzc, .Nv2PK, div[role="article"]');
+      const cardsNow = feed.querySelectorAll(sel);
+      if (cardsNow.length) {
+        cardsNow[cardsNow.length - 1].scrollIntoView({ block: 'end' });
+      }
+      await new Promise(r => setTimeout(r, 1400));
+
+      // If nothing new appeared, give it a wiggle (up a bit, then back down).
+      // This re-triggers the lazy-load observer when a plain scroll stalls.
+      if (feed.querySelectorAll(sel).length === cardsNow.length) {
+        feed.scrollTop = feed.scrollHeight - 600;
+        await new Promise(r => setTimeout(r, 500));
+        feed.scrollTop = feed.scrollHeight;
+        await new Promise(r => setTimeout(r, 900));
+      }
+
+      const cards = feed.querySelectorAll(sel);
       const text = feed.innerText || '';
       const atEnd = /you've reached the end of the list|reached the end of the list/i.test(text);
       return { count: cards.length, atEnd, height: feed.scrollHeight };
@@ -466,25 +495,58 @@ async function getBusinessDetails(page, cardIndex) {
   return result;
 }
 
+// Read the map's current center + zoom from the URL Google rewrites after a search,
+// e.g. ".../search/salon+in+virginia/@37.43,-78.65,7z". Returns null if not present.
+function getMapCenter(url) {
+  const m = (url || '').match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d+(?:\.\d+)?)z/);
+  if (!m) return null;
+  return { lat: parseFloat(m[1]), lng: parseFloat(m[2]), zoom: parseFloat(m[3]) };
+}
+
+// Build a grid of zoomed-in search URLs around the original map center so we can
+// re-search each sub-area. Tiles are ordered from the center outward (ring by ring),
+// and the step is sized to roughly tile the originally-viewed region at the new zoom.
+function buildGridViews(query, center, radius = 2) {
+  const newZoom = Math.min(center.zoom + 2, 16);
+  // Degrees spanned by one viewport at the new zoom ≈ tile step (≈900px viewport).
+  const step = (360 * 900) / (256 * Math.pow(2, newZoom));
+  const offsets = [];
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx === 0 && dy === 0) continue; // center already scanned
+      offsets.push({ dx, dy, ring: Math.max(Math.abs(dx), Math.abs(dy)) });
+    }
+  }
+  offsets.sort((a, b) => a.ring - b.ring); // expand outward from the center
+  return offsets.map(({ dx, dy }) => {
+    const lat = (center.lat + dy * step).toFixed(5);
+    const lng = (center.lng + dx * step).toFixed(5);
+    return `https://www.google.com/maps/search/${encodeURIComponent(query)}/@${lat},${lng},${newZoom}z`;
+  });
+}
+
 async function scanForGaps({ niche, city, maxResults, reviewThreshold, onProgress }) {
   const config = { ...DEFAULT_CONFIG, maxResults, reviewThreshold };
   const { browser, context, page } = await createBrowser(config.headless);
   const results = [];
+  const seen = new Set();
 
-  try {
-    onProgress(`Searching Google Maps for "${niche}" in "${city}"...`);
-    await searchGoogleMaps(page, niche, city, onProgress, config.maxResults);
-    onProgress('Extracting business listings...');
+  const dedupeKey = (lead) =>
+    `${(lead.name || '').toLowerCase().trim()}|${(lead.address || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 40)}`;
 
+  // Extract + audit every new business in the currently-loaded view, stopping
+  // once we reach the global maxResults target. Returns how many new leads it added.
+  const harvestCurrentView = async (label) => {
     const cards = await extractBusinessCards(page);
-    onProgress(`Found ${cards.length} businesses. Analyzing gaps...`);
+    onProgress(`${label}: ${cards.length} listings on screen, ${results.length}/${config.maxResults} collected so far.`);
 
-    const toProcess = Math.min(cards.length, config.maxResults);
-
-    for (let i = 0; i < toProcess; i++) {
+    let added = 0;
+    for (let i = 0; i < cards.length && results.length < config.maxResults; i++) {
       const lead = cards[i];
-      onProgress(`[${i + 1}/${toProcess}] Analyzing: ${lead.name}`);
+      // Skip obvious repeats before spending time on a detail fetch.
+      if (seen.has(dedupeKey(lead))) continue;
 
+      onProgress(`[${results.length + 1}/${config.maxResults}] Analyzing: ${lead.name}`);
       const details = await getBusinessDetails(page, i);
       if (details) {
         lead.website = details.website || lead.website;
@@ -499,30 +561,56 @@ async function scanForGaps({ niche, city, maxResults, reviewThreshold, onProgres
         lead.respondsToReviews = details.respondsToReviews;
       }
 
+      // Re-check after details fill in the address (better dedupe across tiles).
+      const key = dedupeKey(lead);
+      if (seen.has(key)) continue;
+      seen.add(key);
+
       lead.gaps = [];
-      if (lead.reviewCount < config.reviewThreshold) {
-        lead.gaps.push('low_reviews');
-      }
-      if (!lead.hasWebsite) {
-        lead.gaps.push('no_website');
-      }
-      if (!lead.respondsToReviews && lead.reviewCount > 0) {
-        lead.gaps.push('no_review_responses');
-      }
-      if (!lead.hasPhotos) {
-        lead.gaps.push('no_photos');
-      }
-      if (!lead.phone) {
-        lead.gaps.push('no_phone');
-      }
+      if (lead.reviewCount < config.reviewThreshold) lead.gaps.push('low_reviews');
+      if (!lead.hasWebsite) lead.gaps.push('no_website');
+      if (!lead.respondsToReviews && lead.reviewCount > 0) lead.gaps.push('no_review_responses');
+      if (!lead.hasPhotos) lead.gaps.push('no_photos');
+      if (!lead.phone) lead.gaps.push('no_phone');
 
       lead.gapCount = lead.gaps.length;
       lead.isTarget = lead.gapCount >= 2;
 
       results.push(lead);
+      added += 1;
 
-      if (i < toProcess - 1) {
-        await sleep(config.delayBetweenRequests);
+      if (results.length < config.maxResults) await sleep(config.delayBetweenRequests);
+    }
+    return added;
+  };
+
+  try {
+    onProgress(`Searching Google Maps for "${niche}" in "${city}"...`);
+    await searchGoogleMaps(page, niche, city, onProgress, config.maxResults);
+    onProgress('Extracting business listings...');
+    await harvestCurrentView('Main area');
+
+    // Google caps a single search at ~50–60 results. If we still need more,
+    // re-run the search across a grid of nearby map points to break past the cap.
+    if (results.length < config.maxResults) {
+      const center = getMapCenter(page.url());
+      if (center) {
+        const query = `${niche} in ${city}`;
+        const views = buildGridViews(query, center);
+        onProgress(`Google's per-search limit reached (${results.length}). Sweeping ${views.length} nearby sub-areas for more...`);
+
+        for (let t = 0; t < views.length && results.length < config.maxResults; t++) {
+          await sleep(config.delayBetweenRequests);
+          try {
+            await loadResultsView(page, views[t]);
+            await autoScrollFeed(page, onProgress, config.maxResults - results.length);
+            await harvestCurrentView(`Sub-area ${t + 1}/${views.length}`);
+          } catch (e) {
+            onProgress(`Sub-area ${t + 1} skipped: ${e.message}`);
+          }
+        }
+      } else {
+        onProgress('Could not read map coordinates — skipping sub-area sweep.');
       }
     }
 
