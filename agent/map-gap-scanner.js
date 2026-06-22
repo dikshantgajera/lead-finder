@@ -150,8 +150,23 @@ async function extractBusinessCards(page) {
 
       const nameEl = card.querySelector('h3, [class*="fontHeadline"], [class*="title"]');
       const name = nameEl?.textContent?.trim() || card.getAttribute('aria-label') || '';
-      if (!name || name.length < 2 || seen.has(name)) continue;
-      seen.add(name);
+      if (!name || name.length < 2) continue;
+
+      // Stable Google place identifier from the listing link. The hex CID pair
+      // (e.g. "0x89c25...:0x3f2...") is unique per business and identical across
+      // every map tile, so it is the most reliable key for de-duplication.
+      const anchor = (card.tagName === 'A' && card.href)
+        ? card
+        : (card.querySelector('a[href*="maps/place"]') || card.closest('a[href*="maps/place"]'));
+      const href = (anchor && anchor.href) || '';
+      let placeId = '';
+      const cidMatch = href.match(/0x[0-9a-f]+:0x[0-9a-f]+/i) || href.match(/!1s([^!?&]+)/);
+      if (cidMatch) placeId = cidMatch[0].replace(/^!1s/, '');
+
+      // Within a single view, skip repeats by place id (or name when id is absent).
+      const localKey = placeId || name;
+      if (seen.has(localKey)) continue;
+      seen.add(localKey);
 
       // Extract rating + review count from card text
       let rating = 0;
@@ -268,6 +283,7 @@ async function extractBusinessCards(page) {
 
       results.push({
         name,
+        placeId,
         rating,
         reviewCount,
         address,
@@ -531,8 +547,14 @@ async function scanForGaps({ niche, city, maxResults, reviewThreshold, onProgres
   const results = [];
   const seen = new Set();
 
-  const dedupeKey = (lead) =>
-    `${(lead.name || '').toLowerCase().trim()}|${(lead.address || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 40)}`;
+  // Prefer the stable place id (identical across map tiles). Fall back to a
+  // normalized name+address only when the id could not be extracted.
+  const dedupeKey = (lead) => {
+    if (lead.placeId) return `id:${lead.placeId.toLowerCase()}`;
+    const name = (lead.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const addr = (lead.address || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 40);
+    return `na:${name}|${addr}`;
+  };
 
   // Extract + audit every new business in the currently-loaded view, stopping
   // once we reach the global maxResults target. Returns how many new leads it added.
